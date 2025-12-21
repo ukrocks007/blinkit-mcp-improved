@@ -4,8 +4,15 @@ from src.order.blinkit_order import BlinkitOrder
 import io
 from contextlib import redirect_stdout
 
+import os
+
 # Initialize FastMCP
-mcp = FastMCP("blinkit")
+SERVE_SSE = os.environ.get("SERVE_HTTPS", "").lower() == "true"
+
+if SERVE_SSE:
+    mcp = FastMCP("blinkit-mcp", host="0.0.0.0", port=8000)
+else:
+    mcp = FastMCP("blinkit-mcp")
 
 
 # Global Context to maintain session

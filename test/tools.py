@@ -1,5 +1,11 @@
-from src.server import mcp
+import sys
+import os
 import asyncio
+
+# Add project root to Python path to allow importing from src
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from src.server import mcp
 
 
 async def list_tools():
