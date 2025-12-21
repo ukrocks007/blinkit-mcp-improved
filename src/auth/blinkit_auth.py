@@ -21,21 +21,33 @@ class BlinkitAuth:
         self.playwright = await async_playwright().start()
         self.browser = await self.playwright.firefox.launch(headless=self.headless)
 
+        # Default fallback (Noida Sector 62)
+        geolocation = {"latitude": 28.6279, "longitude": 77.3649}
+
+        try:
+            from src.utils.geo import get_current_location
+
+            detected_loc = get_current_location()
+            if detected_loc:
+                print(f"Using detected location: {detected_loc}")
+                geolocation = detected_loc
+            else:
+                print("Could not detect location. Using fallback (Noida).")
+        except Exception as e:
+            print(f"Error initializing location detection: {e}. Using fallback.")
+
         if os.path.exists(self.session_path):
             print(f"Loading session from {self.session_path}")
             self.context = await self.browser.new_context(
                 storage_state=self.session_path,
                 permissions=["geolocation"],
-                geolocation={
-                    "latitude": 28.6279,
-                    "longitude": 77.3649,
-                },  # Default to Noida Sector 62
+                geolocation=geolocation,
             )
         else:
             print("No existing session found. Starting fresh.")
             self.context = await self.browser.new_context(
                 permissions=["geolocation"],
-                geolocation={"latitude": 28.6279, "longitude": 77.3649},
+                geolocation=geolocation,
             )
 
         self.page = await self.context.new_page()
