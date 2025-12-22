@@ -145,6 +145,20 @@ async def main():
                             await order.select_address(int(sel))
                             await order.place_order()
 
+                elif cmd == "payment":
+                    # usage: payment [id]
+                    # if no id provided, it lists IDs
+                    if len(args) == 0:
+                        await order.get_upi_ids()
+                        print("To select one, use: payment <upi_id>")
+                    else:
+                        upi_id = args[0]
+                        await order.select_upi_id(upi_id)
+
+                        confirm = await get_input("Click 'Pay Now'? (y/n): ")
+                        if confirm.lower() == "y":
+                            await order.click_pay_now()
+
                 else:
                     print(f"Unknown command: {cmd}")
 

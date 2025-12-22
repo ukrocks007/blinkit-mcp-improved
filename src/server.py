@@ -3,11 +3,15 @@ from src.auth.blinkit_auth import BlinkitAuth
 from src.order.blinkit_order import BlinkitOrder
 import io
 from contextlib import redirect_stdout
-
+from dotenv import load_dotenv
 import os
+
+load_dotenv()
 
 # Initialize FastMCP
 SERVE_SSE = os.environ.get("SERVE_HTTPS", "").lower() == "true"
+
+print(SERVE_SSE)
 
 if SERVE_SSE:
     mcp = FastMCP("blinkit-mcp", host="0.0.0.0", port=8000)
@@ -181,4 +185,40 @@ async def proceed_to_pay() -> str:
     f = io.StringIO()
     with redirect_stdout(f):
         await ctx.order.place_order()
+    return f.getvalue()
+
+
+@mcp.tool()
+async def get_upi_ids() -> str:
+    """Get list of available/saved UPI IDs from the payment page."""
+    await ctx.ensure_started()
+    f = io.StringIO()
+    with redirect_stdout(f):
+        ids = await ctx.order.get_upi_ids()
+        if not ids:
+            print("No UPI IDs found.")
+        else:
+            print("Available UPI IDs:")
+            for i in ids:
+                print(f"- {i}")
+    return f.getvalue()
+
+
+@mcp.tool()
+async def select_upi_id(upi_id: str) -> str:
+    """Select a specific UPI ID (e.g. 'foo@ybl') or enter a new one."""
+    await ctx.ensure_started()
+    f = io.StringIO()
+    with redirect_stdout(f):
+        await ctx.order.select_upi_id(upi_id)
+    return f.getvalue()
+
+
+@mcp.tool()
+async def pay_now() -> str:
+    """Click the 'Pay Now' button to complete the transaction."""
+    await ctx.ensure_started()
+    f = io.StringIO()
+    with redirect_stdout(f):
+        await ctx.order.click_pay_now()
     return f.getvalue()

@@ -4,6 +4,29 @@ from playwright.async_api import Page
 class BlinkitOrder:
     def __init__(self, page: Page):
         self.page = page
+        # Attach blocking listener for debugging specific relevant errors
+        self.page.on("response", self._handle_response)
+
+    async def _handle_response(self, response):
+        """Monitor network responses for payment failures."""
+        try:
+            url = response.url
+            if "zpaykit" in url or "payment" in url:
+                if response.status >= 400:
+                    print(f"DEBUG: Payment API Error {response.status} at {url}")
+
+                # Try to parse JSON for failure messages even on 200 OK
+                if "application/json" in response.headers.get("content-type", ""):
+                    try:
+                        data = await response.json()
+                        if isinstance(data, dict) and (
+                            data.get("status") == "failed" or data.get("error")
+                        ):
+                            print(f"DEBUG: Payment API Failure captured: {data}")
+                    except Exception:
+                        pass
+        except Exception:
+            pass
 
     async def search_product(self, product_name: str):
         """Searches for a product using the search bar."""
@@ -325,3 +348,130 @@ class BlinkitOrder:
 
         except Exception as e:
             print(f"Error placing order: {e}")
+
+    async def get_upi_ids(self):
+        """Scrapes available UPI IDs/options from the payment widget."""
+        print("Getting available UPI IDs...")
+        try:
+            iframe_element = await self.page.wait_for_selector(
+                "#payment_widget", timeout=30000
+            )
+            if not iframe_element:
+                print("Payment widget iframe not found.")
+                return []
+
+            frame = await iframe_element.content_frame()
+            if not frame:
+                return []
+
+            await frame.wait_for_load_state("networkidle")
+
+            ids = []
+            # Try to find elements that look like VPAs (contain @) inside the frame
+            vpa_locators = frame.locator("text=/@/")
+            count = await vpa_locators.count()
+            for i in range(count):
+                text = await vpa_locators.nth(i).inner_text()
+                if "@" in text:
+                    ids.append(text.strip())
+
+            # Also add "Add new UPI ID" option if exists
+            if await frame.locator("text='Add new UPI ID'").count() > 0:
+                ids.append("Add new UPI ID")
+
+            print(f"Found UPI IDs: {ids}")
+            return ids
+
+        except Exception as e:
+            print(f"Error getting UPI IDs: {e}")
+            return []
+
+    async def select_upi_id(self, upi_id: str):
+        """Selects a specific UPI ID or enters a new one."""
+        print(f"Selecting UPI ID: {upi_id}...")
+        try:
+            iframe_element = await self.page.wait_for_selector(
+                "#payment_widget", timeout=30000
+            )
+            if not iframe_element:
+                return
+
+            frame = await iframe_element.content_frame()
+            if not frame:
+                return
+
+            # 1. Try to click on an existing saved VPA if it matches
+            saved_vpa = frame.locator(f"text='{upi_id}'")
+            if await saved_vpa.count() > 0:
+                await saved_vpa.first.click()
+                print(f"Clicked saved VPA: {upi_id}")
+                return
+
+            # 2. If not found, Select "UPI" / "Add new UPI ID" section
+            # Click generic UPI header first if needed to expand
+            upi_header = frame.locator("div").filter(has_text="UPI").last
+            if await upi_header.count() > 0:
+                await upi_header.click()
+
+            await self.page.wait_for_timeout(500)
+
+            # 3. Enter VPA in input
+            input_locator = frame.locator(
+                "input[placeholder*='UPI'], input[type='text']"
+            )
+            if await input_locator.count() > 0:
+                await input_locator.first.fill(upi_id)
+                print(f"Filled UPI ID: {upi_id}")
+
+                # Verify
+                verify_btn = frame.locator("text=Verify")
+                if await verify_btn.count() > 0:
+                    await verify_btn.click()
+                    print("Clicked Verify button.")
+            else:
+                print("Could not find UPI input field.")
+
+        except Exception as e:
+            print(f"Error selecting UPI ID: {e}")
+
+    async def click_pay_now(self):
+        """Clicks the final Pay Now button."""
+        print("Attempting to click Pay Now...")
+        try:
+            # Strategy 1: Specific class partial match (most robust if class prefix is stable)
+            # HTML: <div class="Zpayments__Button-sc-127gezb-3 dAfcjh">Pay Now</div>
+            pay_btn_specific = self.page.locator(
+                "div[class*='Zpayments__Button']:has-text('Pay Now')"
+            )
+            if (
+                await pay_btn_specific.count() > 0
+                and await pay_btn_specific.first.is_visible()
+            ):
+                await pay_btn_specific.first.click()
+                print("Clicked 'Pay Now' (specific class selector).")
+                return
+
+            # Strategy 2: Text match on page (ensure it's visible)
+            pay_btn_text = (
+                self.page.locator("div, button").filter(has_text="Pay Now").last
+            )
+            if await pay_btn_text.count() > 0 and await pay_btn_text.is_visible():
+                await pay_btn_text.click()
+                print("Clicked 'Pay Now' (text selector).")
+                return
+
+            # Strategy 3: Check inside iframe (fallback)
+            iframe_element = await self.page.query_selector("#payment_widget")
+            if iframe_element:
+                frame = await iframe_element.content_frame()
+                if frame:
+                    frame_btn = frame.locator("text='Pay Now'")
+                    if await frame_btn.count() > 0:
+                        await frame_btn.first.click()
+                        print("Clicked 'Pay Now' inside iframe.")
+                        return
+
+            print("Could not find 'Pay Now' button (timeout or not in DOM).")
+
+        except Exception as e:
+            print(f"Error clicking Pay Now: {e}")
