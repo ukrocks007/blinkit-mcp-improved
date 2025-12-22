@@ -1,0 +1,174 @@
+<p align="center">
+  <img src="assets/logo.png" alt="Blinkit MCP Logo" width="120" height="120" style="border-radius:30px;">
+</p>
+
+<h1 align="center">Blinkit MCP</h1>
+
+<p align="center">
+  A Model Context Protocol (MCP) server that lets Claude Desktop browse, search, and order from Blinkit in real time.
+</p>
+
+<p align="center">
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT License">
+  </a>
+  <img src="https://img.shields.io/badge/python-3.12+-green.svg" alt="Python 3.12+">
+  <img src="https://img.shields.io/badge/MCP-Claude%20Desktop-purple.svg" alt="Claude MCP">
+</p>
+
+---
+
+## ✨ What is Blinkit MCP?
+
+**Blinkit MCP** is a plug-and-play MCP server that allows Claude Desktop to automate your grocery shopping on Blinkit.
+
+Your AI can:
+- 🔍 Search for products (groceries, electronics, etc.)
+- 🛒 Add items to your cart
+- 📍 Manage delivery locations
+- 💳 Automate checkout and UPI payments
+- 🔐 Login securely with phone and OTP
+
+No manual clicking required. Just ask Claude to buy milk.
+
+---
+
+## 🎬 Quick Demo
+
+![Blinkit MCP Demo](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMzM0N2FkNmEzZGQ5ZDY5ZDY5ZDY5ZDY5ZDY5ZDY5ZDY5ZD/3o7TKSjRrfIPjeiVyM/giphy.gif)
+
+> 💡 *Ask Claude: "Buy milk from Blinkit"*
+
+---
+
+## 🚀 Quick Start (30 seconds)
+
+1. **Install `uv`** (if you don't have it):
+
+   **macOS / Linux**
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
+   **Windows**
+   ```powershell
+   powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+   ```
+
+2. **Download the MCP bundle**  
+   👉 [blinkit-mcp.mcpb](https://github.com/hereisSwapnil/blinkit-mcp/releases/latest/download/blinkit-mcp.mcpb)
+
+3. **Double-click** the `.mcpb` file — Claude Desktop installs it automatically.
+
+4. **Open Claude Desktop** and start shopping.
+
+---
+
+## 🔥 Key Features
+
+| Feature | Description |
+|---------|-------------|
+| 🔒 **Secure Auth** | Login via Phone Number & OTP (Session persisted locally) |
+| 🔎 **Smart Search** | Find products by name and get pricing/details |
+| 🛒 **Cart Management** | Add items, check cart status, and verify availability |
+| 📍 **Location** | Detect or manually set delivery location |
+| 💳 **Payment Automation** | **New!** Select saved UPI IDs or enter new ones automatically |
+| 🚀 **Checkout Flow** | Handles address selection and ordering flow seamlessly |
+
+---
+
+## 📦 One-Click Installation (Recommended)
+
+Download and install directly in Claude Desktop:
+
+<p align="center">
+  <a href="https://github.com/hereisSwapnil/blinkit-mcp/releases/latest/download/blinkit-mcp.mcpb">
+    <img src="https://img.shields.io/badge/Download-blinkit--mcp.mcpb-orange?style=for-the-badge" alt="Download">
+  </a>
+</p>
+
+**Supports:** macOS • Windows • Linux
+
+---
+
+## 🛠️ Manual Installation
+
+If you prefer to run from source:
+
+1. **Clone and Run**:
+   ```bash
+   git clone https://github.com/hereisSwapnil/blinkit-mcp.git
+   cd blinkit-mcp
+   uv run main.py
+   ```
+
+2. **Configure Claude Desktop**:
+   
+   Add this to your `claude_desktop_config.json`:
+
+   ```json
+   {
+     "mcpServers": {
+       "blinkit-mcp": {
+         "command": "/usr/local/bin/uv",
+         "args": ["run", "main.py"],
+         "cwd": "/absolute/path/to/blinkit-mcp",
+         "env": {
+             "HEADLESS": "false" 
+         }
+       }
+     }
+   }
+   ```
+   *(Set `HEADLESS` to `false` to see the browser action, or `true` for background mode)*
+
+## 🧰 Available MCP Tools
+
+| Tool | Description |
+|------|-------------|
+| `login` | Login with phone number |
+| `enter_otp` | Verify login with OTP |
+| `search` | Search for products |
+| `add_to_cart` | Add product to cart by index |
+| `check_cart` | View cart contents |
+| `checkout` | Proceed to checkout & select address |
+| `get_upi_ids` | List available UPI payment options |
+| `select_upi_id` | Select a specific UPI ID for payment |
+| `pay_now` | Click the final Pay Now button |
+
+---
+
+## 💬 Example Queries
+
+- *"Buy milk from Blinkit to my home and use my UPI for payment"*
+- *"Order 2 packets of Maggi and pay via UPI"*
+- *"Get me some chips, deliver to office, and checkout"*
+
+---
+
+## 📁 Project Structure
+
+```
+blinkit-mcp/
+├── main.py                # MCP server entry point
+├── src/
+│   ├── ordering/          # Core browser automation logic
+│   │   └── blinkit_order.py
+│   ├── auth/              # Authentication persistence
+│   │   └── blinkit_auth.py
+│   └── server.py          # MCP Tool definitions
+├── test/
+│   └── cli.py             # CLI for testing independent of Claude
+└── README.md
+```
+
+---
+
+## 📄 License
+
+Licensed under the [MIT License](LICENSE).
+
+---
+
+<p align="center">
+  <b>Blinkit MCP turns Claude into your personal grocery assistant.</b>
+</p>

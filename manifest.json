@@ -1,0 +1,24 @@
+{
+    "manifest_version": "0.2",
+    "name": "blinkit-mcp",
+    "version": "0.1.0",
+    "description": "Blinkit MCP Server for Claude Desktop",
+    "author": {
+        "name": "Swapnil Singh"
+    },
+    "icon": "assets/logo.png",
+    "license": "MIT",
+    "server": {
+        "type": "python",
+        "entry_point": "main.py",
+        "mcp_config": {
+            "command": "python",
+            "args": [
+                "${__dirname}/main.py"
+            ],
+            "env": {
+                "PYTHONPATH": "${__dirname}"
+            }
+        }
+    }
+}
