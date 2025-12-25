@@ -108,7 +108,7 @@ async def enter_otp(otp: str) -> str:
 
 @mcp.tool()
 async def search(query: str) -> str:
-    """Search for a product on Blinkit. Returns a list of items with indexes."""
+    """Search for a product on Blinkit. Returns a list of items with their IDs."""
     await ctx.ensure_started()
     f = io.StringIO()
     with redirect_stdout(f):
@@ -117,19 +117,21 @@ async def search(query: str) -> str:
         if results:
             print(f"\nFound {len(results)} results:")
             for item in results:
-                print(f"[{item['index']}] {item['name']} - {item['price']}")
+                print(
+                    f"[{item['index']}] ID: {item['id']} | {item['name']} - {item['price']}"
+                )
         else:
             print("No results found.")
     return f.getvalue()
 
 
 @mcp.tool()
-async def add_to_cart(item_index: int) -> str:
-    """Add an item to the cart using its result index. Run search() first."""
+async def add_to_cart(item_id: str) -> str:
+    """Add an item to the cart using its Product ID (from search results)."""
     await ctx.ensure_started()
     f = io.StringIO()
     with redirect_stdout(f):
-        await ctx.order.add_to_cart(item_index)
+        await ctx.order.add_to_cart(item_id)
     return f.getvalue()
 
 

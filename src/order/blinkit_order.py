@@ -7,6 +7,10 @@ class BlinkitOrder:
         # Attach blocking listener for debugging specific relevant errors
         self.page.on("response", self._handle_response)
 
+        # State tracking for cross-search cart addition
+        self.known_products = {}  # Maps product_id -> {'source_query': str, 'name': str}
+        self.current_query = None
+
     async def _handle_response(self, response):
         """Monitor network responses for payment failures."""
         try:
@@ -31,6 +35,7 @@ class BlinkitOrder:
     async def search_product(self, product_name: str):
         """Searches for a product using the search bar."""
         print(f"Searching for item: {product_name}...")
+        self.current_query = product_name  # Store current query for state tracking
         try:
             # 1. Activate Search
             if await self.page.is_visible("a[href='/s/']"):
@@ -117,8 +122,8 @@ class BlinkitOrder:
         except Exception as e:
             print(f"Error setting location: {e}")
 
-    async def get_search_results(self, limit=5):
-        """Parses search results and returns a list of product details."""
+    async def get_search_results(self, limit=10):
+        """Parses search results and returns a list of product details including IDs."""
         results = []
         try:
             cards = (
@@ -134,6 +139,11 @@ class BlinkitOrder:
                 card = cards.nth(i)
                 text_content = await card.inner_text()
 
+                # Extract ID
+                product_id = await card.get_attribute("id")
+                if not product_id:
+                    product_id = "unknown"
+
                 # Extract Name
                 name_locator = card.locator("div[class*='line-clamp-2']")
                 if await name_locator.count() > 0:
@@ -141,6 +151,13 @@ class BlinkitOrder:
                 else:
                     lines = [line for line in text_content.split("\n") if line.strip()]
                     name = lines[0] if lines else "Unknown Product"
+
+                # Store in known products including the source query
+                if product_id != "unknown":
+                    self.known_products[product_id] = {
+                        "source_query": self.current_query,
+                        "name": name,
+                    }
 
                 # Extract Price
                 price = "Unknown Price"
@@ -150,43 +167,65 @@ class BlinkitOrder:
                             price = part.strip()
                             break
 
-                results.append({"index": i, "name": name, "price": price})
+                results.append(
+                    {"index": i, "id": product_id, "name": name, "price": price}
+                )
 
         except Exception as e:
             print(f"Error extracting search results: {e}")
 
         return results
 
-    async def add_to_cart(self, item_index: int = 0):
-        """Adds the Nth item from search results to the cart."""
-        print(f"Adding item at index {item_index} to cart...")
+    async def add_to_cart(self, product_id: str):
+        """Adds a product to the cart by its unique ID."""
+        print(f"Adding product with ID {product_id} to cart...")
         try:
-            cards = (
-                self.page.locator("div[role='button']")
-                .filter(has_text="ADD")
-                .filter(has_text="₹")
-            )
+            # Target the specific card by ID
+            card = self.page.locator(f"div[id='{product_id}']")
 
-            count = await cards.count()
-            if count <= item_index:
-                print(f"Item index {item_index} out of range (found {count} items).")
-                return
+            if await card.count() == 0:
+                print(f"Product ID {product_id} not found on current page.")
 
-            card = cards.nth(item_index)
+                # Check if we know this product from a previous search
+                if product_id in self.known_products:
+                    print("Product found in history.")
+                    product_info = self.known_products[product_id]
+                    source_query = product_info.get("source_query")
+
+                    if source_query:
+                        print(
+                            f"Navigating back to search results for '{source_query}'..."
+                        )
+                        await self.search_product(source_query)
+                        # Re-locate the card after search
+                        card = self.page.locator(f"div[id='{product_id}']")
+                        if await card.count() == 0:
+                            print(
+                                f"CRITICAL: Product {product_id} still not found after re-search."
+                            )
+                            return
+                    else:
+                        print("No source query found for this product.")
+                        return
+                else:
+                    print("Product ID unknown and not on current page.")
+                    return
 
             # Find the ADD button specifically inside the card
             add_btn = card.locator("div").filter(has_text="ADD").last
 
             if await add_btn.is_visible():
                 await add_btn.click()
-                print("Clicked ADD button.")
+                print(f"Clicked ADD button for {product_id}.")
             else:
                 # Check for checkmark/counter indicating already added
                 if await card.locator("text='+'").is_visible():
                     print("Item already in cart. Incrementing...")
                     await card.locator("text='+'").click()
                 else:
-                    print("Could not find ADD button or increment controls.")
+                    print(
+                        f"Could not find ADD button or increment controls for {product_id}."
+                    )
 
             await self.page.wait_for_timeout(1000)
 
