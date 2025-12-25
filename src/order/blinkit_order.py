@@ -32,6 +32,13 @@ class BlinkitOrder:
         except Exception:
             pass
 
+    async def _is_store_closed(self):
+        """Checks if the store is closed or unavailable."""
+        if await self.page.is_visible("text=Store is closed"):
+            print("CRITICAL: Store is closed.")
+            return True
+        return False
+
     async def search_product(self, product_name: str):
         """Searches for a product using the search bar."""
         print(f"Searching for item: {product_name}...")
@@ -351,6 +358,9 @@ class BlinkitOrder:
                 print("Address selection modal not visible.")
                 return []
 
+            if await self._is_store_closed():
+                return "CRITICAL: Store is closed."
+
             print("Address modal detected. Parsing addresses...")
             address_items = self.page.locator(
                 "div[class*='AddressList__AddressItemWrapper']"
@@ -389,6 +399,10 @@ class BlinkitOrder:
             items = self.page.locator("div[class*='AddressList__AddressItemWrapper']")
             if index < await items.count():
                 print(f"Selecting address at index {index}...")
+
+                if await self._is_store_closed():
+                    return "CRITICAL: Store is closed."
+
                 await items.nth(index).click()
                 # Wait for modal to close or location to update
                 await self.page.wait_for_timeout(2000)
@@ -430,6 +444,9 @@ class BlinkitOrder:
                         or await self.page.is_visible("text=ordering for")
                     )
 
+                    if await self._is_store_closed():
+                        return "CRITICAL: Store is closed."
+
                     # Scrape content
                     drawer = self.page.locator(
                         "div[class*='CartDrawer'], div[class*='CartSidebar']"
@@ -461,6 +478,10 @@ class BlinkitOrder:
     async def place_order(self):
         """Proceeds to checkout."""
         print("Proceeding to Place Order...")
+
+        if await self._is_store_closed():
+            return "CRITICAL: Store is closed."
+
         try:
             proceed_btn = (
                 self.page.locator("button, div").filter(has_text="Proceed").last
