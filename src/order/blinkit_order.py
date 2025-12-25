@@ -176,9 +176,9 @@ class BlinkitOrder:
 
         return results
 
-    async def add_to_cart(self, product_id: str):
-        """Adds a product to the cart by its unique ID."""
-        print(f"Adding product with ID {product_id} to cart...")
+    async def add_to_cart(self, product_id: str, quantity: int = 1):
+        """Adds a product to the cart by its unique ID. Supports multiple quantities."""
+        print(f"Adding product with ID {product_id} to cart (Quantity: {quantity})...")
         try:
             # Target the specific card by ID
             card = self.page.locator(f"div[id='{product_id}']")
@@ -214,17 +214,64 @@ class BlinkitOrder:
             # Find the ADD button specifically inside the card
             add_btn = card.locator("div").filter(has_text="ADD").last
 
+            items_to_add = quantity
+
+            # If ADD button is visible, click it once to start
             if await add_btn.is_visible():
                 await add_btn.click()
-                print(f"Clicked ADD button for {product_id}.")
-            else:
-                # Check for checkmark/counter indicating already added
-                if await card.locator("text='+'").is_visible():
-                    print("Item already in cart. Incrementing...")
-                    await card.locator("text='+'").click()
+                print(f"Clicked ADD button for {product_id} (1/{quantity}).")
+                items_to_add -= 1
+                # Wait for the counter to appear
+                await self.page.wait_for_timeout(500)
+
+            # Use increment button for remaining quantity
+            if items_to_add > 0:
+                # Wait for the counter to initialize
+                await self.page.wait_for_timeout(1000)
+
+                # Robust strategy to find the + button
+                # 1. Try class based selector used in verification
+                plus_btn = card.locator(".icon-plus").first
+                if await plus_btn.count() > 0:
+                    plus_btn = plus_btn.locator(
+                        ".."
+                    )  # Parent of icon is usually the button
                 else:
+                    # 2. Try text based fallback
+                    plus_btn = card.locator("text='+'").first
+
+                if await plus_btn.is_visible():
+                    for i in range(items_to_add):
+                        await plus_btn.click()
+                        print(
+                            f"Incrementing quantity for {product_id} ({quantity - items_to_add + i + 1}/{quantity})."
+                        )
+
+                        # Check for limit reached message immediately after click
+                        try:
+                            # Blinkit shows a toast or message "Sorry, you can't add more of this item"
+                            # We use a short timeout because if it appears, it appears quickly
+                            limit_msg = self.page.get_by_text(
+                                "Sorry, you can't add more of this item"
+                            )
+                            if await limit_msg.is_visible(timeout=1000):
+                                print(
+                                    f"Quantity limit reached for {product_id} at {quantity - items_to_add + i} items."
+                                )
+                                print("Stopping further addition.")
+                                break
+                        except Exception:
+                            # Timeout expected if no error message
+                            pass
+
+                        await self.page.wait_for_timeout(
+                            500
+                        )  # Delay to register clicks
+                else:
+                    # Final fallback: Look for any clickable div inside that is "add-ish"
+                    # But better to just report failure to avoid random clicks
                     print(
-                        f"Could not find ADD button or increment controls for {product_id}."
+                        f"Could not find '+' button to add remaining quantity for {product_id}. (Locator failed)"
                     )
 
             await self.page.wait_for_timeout(1000)
@@ -238,6 +285,63 @@ class BlinkitOrder:
 
         except Exception as e:
             print(f"Error adding to cart: {e}")
+
+    async def remove_from_cart(self, product_id: str, quantity: int = 1):
+        """Removes a specific quantity of a product from the cart."""
+        print(f"Removing {quantity} of product ID {product_id} from cart...")
+        try:
+            # Target the specific card by ID
+            card = self.page.locator(f"div[id='{product_id}']")
+
+            if await card.count() == 0:
+                # Same recovery logic as add_to_cart
+                print(
+                    f"Product ID {product_id} not found on current page. Attempting recovery..."
+                )
+                if product_id in self.known_products:
+                    product_info = self.known_products[product_id]
+                    source_query = product_info.get("source_query")
+                    if source_query:
+                        await self.search_product(source_query)
+                        card = self.page.locator(f"div[id='{product_id}']")
+                        if await card.count() == 0:
+                            print(
+                                f"Product {product_id} not found after recovery search."
+                            )
+                            return
+                else:
+                    print(f"Product ID {product_id} not found and unknown.")
+                    return
+
+            # Check for decrement button
+            # Robust strategy to find the - button
+            minus_btn = card.locator(".icon-minus").first
+            if await minus_btn.count() > 0:
+                minus_btn = minus_btn.locator("..")
+            else:
+                minus_btn = card.locator("text='-'").first
+
+            if await minus_btn.is_visible():
+                for i in range(quantity):
+                    await minus_btn.click()
+                    print(
+                        f"Decrementing quantity for {product_id} ({i + 1}/{quantity})."
+                    )
+                    await self.page.wait_for_timeout(500)
+
+                    # If ADD button reappears, item is fully removed
+                    if (
+                        await card.locator("div")
+                        .filter(has_text="ADD")
+                        .last.is_visible()
+                    ):
+                        print(f"Item {product_id} completely removed from cart.")
+                        break
+            else:
+                print(f"Item {product_id} is not in cart (no '-' button found).")
+
+        except Exception as e:
+            print(f"Error removing from cart: {e}")
 
     async def get_saved_addresses(self):
         """Scrapes saved addresses from the selection modal."""

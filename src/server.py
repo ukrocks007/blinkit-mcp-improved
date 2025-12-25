@@ -126,12 +126,22 @@ async def search(query: str) -> str:
 
 
 @mcp.tool()
-async def add_to_cart(item_id: str) -> str:
-    """Add an item to the cart using its Product ID (from search results)."""
+async def add_to_cart(item_id: str, quantity: int = 1) -> str:
+    """Add an item to the cart. Optional: specify quantity (default 1)."""
     await ctx.ensure_started()
     f = io.StringIO()
     with redirect_stdout(f):
-        await ctx.order.add_to_cart(item_id)
+        await ctx.order.add_to_cart(item_id, quantity)
+    return f.getvalue()
+
+
+@mcp.tool()
+async def remove_from_cart(item_id: str, quantity: int = 1) -> str:
+    """Remove a specific quantity of an item from the cart."""
+    await ctx.ensure_started()
+    f = io.StringIO()
+    with redirect_stdout(f):
+        await ctx.order.remove_from_cart(item_id, quantity)
     return f.getvalue()
 
 
