@@ -1,5 +1,5 @@
 from mcp.server.fastmcp import FastMCP
-from src.auth.blinkit_auth import BlinkitAuth
+from src.auth import BlinkitAuth
 from src.order.blinkit_order import BlinkitOrder
 import io
 from contextlib import redirect_stdout

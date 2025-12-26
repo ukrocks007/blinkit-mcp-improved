@@ -1,15 +1,26 @@
 from playwright.async_api import Page
+from .services.search import SearchService
+from .services.location import LocationService
+from .services.cart import CartService
+from .services.checkout import CheckoutService
 
 
 class BlinkitOrder:
     def __init__(self, page: Page):
         self.page = page
-        # Attach blocking listener for debugging specific relevant errors
-        self.page.on("response", self._handle_response)
 
         # State tracking for cross-search cart addition
         self.known_products = {}  # Maps product_id -> {'source_query': str, 'name': str}
         self.current_query = None
+
+        # Initialize Services
+        self.search_service = SearchService(page, self)
+        self.location_service = LocationService(page, self)
+        self.cart_service = CartService(page, self)
+        self.checkout_service = CheckoutService(page, self)
+
+        # Attach blocking listener for debugging specific relevant errors
+        self.page.on("response", self._handle_response)
 
     async def _handle_response(self, response):
         """Monitor network responses for payment failures."""
@@ -32,610 +43,42 @@ class BlinkitOrder:
         except Exception:
             pass
 
-    async def _is_store_closed(self):
-        """Checks if the store is closed or unavailable."""
-        if await self.page.is_visible("text=Store is closed"):
-            print("CRITICAL: Store is closed.")
-            return True
-        return False
-
+    # --- Search Delegate ---
     async def search_product(self, product_name: str):
-        """Searches for a product using the search bar."""
-        print(f"Searching for item: {product_name}...")
-        self.current_query = product_name  # Store current query for state tracking
-        try:
-            # 1. Activate Search
-            if await self.page.is_visible("a[href='/s/']"):
-                await self.page.click("a[href='/s/']")
-            elif await self.page.is_visible(
-                "div[class*='SearchBar__PlaceholderContainer']"
-            ):
-                await self.page.click("div[class*='SearchBar__PlaceholderContainer']")
-            else:
-                # Fallback: type directly if input is visible, or click generic search text
-                if await self.page.is_visible("input[placeholder*='Search']"):
-                    await self.page.click("input[placeholder*='Search']")
-                else:
-                    await self.page.click("text='Search'", timeout=3000)
-
-            # 2. Type and Submit
-            search_input = await self.page.wait_for_selector(
-                "input[placeholder*='Search'], input[type='text']",
-                state="visible",
-                timeout=30000,
-            )
-            await search_input.fill(product_name)
-            await self.page.keyboard.press("Enter")
-
-            # 3. Wait for results
-            print("Waiting for results...")
-            try:
-                # Wait for product cards
-                await self.page.wait_for_selector(
-                    "div[role='button']:has-text('ADD')", timeout=30000
-                )
-                print("Search results loaded.")
-            except Exception:
-                print(
-                    "Timed out waiting for product cards. Checking for 'No results'..."
-                )
-                if await self.page.is_visible("text='No results found'"):
-                    print("No results found for this query.")
-                else:
-                    print("Could not detect standard product cards.")
-
-        except Exception as e:
-            print(f"Error during search: {e}")
-
-    async def set_location(self, location_name: str):
-        """Sets the location manually."""
-        print(f"Setting location to: {location_name}...")
-        try:
-            # Check if the modal is open, if not try to open it
-            if not await self.page.is_visible("input[name='select-locality']"):
-                # Click location bar
-                if await self.page.is_visible("div[class*='LocationBar__Container']"):
-                    await self.page.click("div[class*='LocationBar__Container']")
-
-            # Wait for input
-            location_input = await self.page.wait_for_selector(
-                "input[name='select-locality'], input[placeholder*='search delivery location']",
-                state="visible",
-                timeout=30000,
-            )
-
-            await location_input.fill(location_name)
-            await self.page.wait_for_timeout(1000)
-
-            # Select first result
-            first_result = self.page.locator(
-                "div[class*='LocationSearchBox__LocationItemContainer']"
-            ).first
-            if await first_result.is_visible():
-                await first_result.click()
-                print("Selected first location result.")
-
-                # Wait for location update
-                await self.page.wait_for_timeout(2000)
-
-                # Check if this new location is unavailable
-                if await self.page.is_visible("text=Currently unavailable"):
-                    print(
-                        "WARNING: Store is marked as 'Currently unavailable' at this new location."
-                    )
-            else:
-                print("No location results found.")
-
-        except Exception as e:
-            print(f"Error setting location: {e}")
+        return await self.search_service.search_product(product_name)
 
     async def get_search_results(self, limit=10):
-        """Parses search results and returns a list of product details including IDs."""
-        results = []
-        try:
-            cards = (
-                self.page.locator("div[role='button']")
-                .filter(has_text="ADD")
-                .filter(has_text="₹")
-            )
+        return await self.search_service.get_search_results(limit)
 
-            count = await cards.count()
-            print(f"Found {count} product cards.")
-
-            for i in range(min(count, limit)):
-                card = cards.nth(i)
-                text_content = await card.inner_text()
-
-                # Extract ID
-                product_id = await card.get_attribute("id")
-                if not product_id:
-                    product_id = "unknown"
-
-                # Extract Name
-                name_locator = card.locator("div[class*='line-clamp-2']")
-                if await name_locator.count() > 0:
-                    name = await name_locator.first.inner_text()
-                else:
-                    lines = [line for line in text_content.split("\n") if line.strip()]
-                    name = lines[0] if lines else "Unknown Product"
-
-                # Store in known products including the source query
-                if product_id != "unknown":
-                    self.known_products[product_id] = {
-                        "source_query": self.current_query,
-                        "name": name,
-                    }
-
-                # Extract Price
-                price = "Unknown Price"
-                if "₹" in text_content:
-                    for part in text_content.split("\n"):
-                        if "₹" in part:
-                            price = part.strip()
-                            break
-
-                results.append(
-                    {"index": i, "id": product_id, "name": name, "price": price}
-                )
-
-        except Exception as e:
-            print(f"Error extracting search results: {e}")
-
-        return results
-
-    async def add_to_cart(self, product_id: str, quantity: int = 1):
-        """Adds a product to the cart by its unique ID. Supports multiple quantities."""
-        print(f"Adding product with ID {product_id} to cart (Quantity: {quantity})...")
-        try:
-            # Target the specific card by ID
-            card = self.page.locator(f"div[id='{product_id}']")
-
-            if await card.count() == 0:
-                print(f"Product ID {product_id} not found on current page.")
-
-                # Check if we know this product from a previous search
-                if product_id in self.known_products:
-                    print("Product found in history.")
-                    product_info = self.known_products[product_id]
-                    source_query = product_info.get("source_query")
-
-                    if source_query:
-                        print(
-                            f"Navigating back to search results for '{source_query}'..."
-                        )
-                        await self.search_product(source_query)
-                        # Re-locate the card after search
-                        card = self.page.locator(f"div[id='{product_id}']")
-                        if await card.count() == 0:
-                            print(
-                                f"CRITICAL: Product {product_id} still not found after re-search."
-                            )
-                            return
-                    else:
-                        print("No source query found for this product.")
-                        return
-                else:
-                    print("Product ID unknown and not on current page.")
-                    return
-
-            # Find the ADD button specifically inside the card
-            add_btn = card.locator("div").filter(has_text="ADD").last
-
-            items_to_add = quantity
-
-            # If ADD button is visible, click it once to start
-            if await add_btn.is_visible():
-                await add_btn.click()
-                print(f"Clicked ADD button for {product_id} (1/{quantity}).")
-                items_to_add -= 1
-                # Wait for the counter to appear
-                await self.page.wait_for_timeout(500)
-
-            # Use increment button for remaining quantity
-            if items_to_add > 0:
-                # Wait for the counter to initialize
-                await self.page.wait_for_timeout(1000)
-
-                # Robust strategy to find the + button
-                # 1. Try class based selector used in verification
-                plus_btn = card.locator(".icon-plus").first
-                if await plus_btn.count() > 0:
-                    plus_btn = plus_btn.locator(
-                        ".."
-                    )  # Parent of icon is usually the button
-                else:
-                    # 2. Try text based fallback
-                    plus_btn = card.locator("text='+'").first
-
-                if await plus_btn.is_visible():
-                    for i in range(items_to_add):
-                        await plus_btn.click()
-                        print(
-                            f"Incrementing quantity for {product_id} ({quantity - items_to_add + i + 1}/{quantity})."
-                        )
-
-                        # Check for limit reached message immediately after click
-                        try:
-                            # Blinkit shows a toast or message "Sorry, you can't add more of this item"
-                            # We use a short timeout because if it appears, it appears quickly
-                            limit_msg = self.page.get_by_text(
-                                "Sorry, you can't add more of this item"
-                            )
-                            if await limit_msg.is_visible(timeout=1000):
-                                print(
-                                    f"Quantity limit reached for {product_id} at {quantity - items_to_add + i} items."
-                                )
-                                print("Stopping further addition.")
-                                break
-                        except Exception:
-                            # Timeout expected if no error message
-                            pass
-
-                        await self.page.wait_for_timeout(
-                            500
-                        )  # Delay to register clicks
-                else:
-                    # Final fallback: Look for any clickable div inside that is "add-ish"
-                    # But better to just report failure to avoid random clicks
-                    print(
-                        f"Could not find '+' button to add remaining quantity for {product_id}. (Locator failed)"
-                    )
-
-            await self.page.wait_for_timeout(1000)
-
-            # Check for "Store Unavailable" modal
-            if await self.page.is_visible(
-                "div:has-text('Sorry, can\\'t take your order')"
-            ):
-                print("WARNING: Store is unavailable (Modal detected).")
-                return
-
-        except Exception as e:
-            print(f"Error adding to cart: {e}")
-
-    async def remove_from_cart(self, product_id: str, quantity: int = 1):
-        """Removes a specific quantity of a product from the cart."""
-        print(f"Removing {quantity} of product ID {product_id} from cart...")
-        try:
-            # Target the specific card by ID
-            card = self.page.locator(f"div[id='{product_id}']")
-
-            if await card.count() == 0:
-                # Same recovery logic as add_to_cart
-                print(
-                    f"Product ID {product_id} not found on current page. Attempting recovery..."
-                )
-                if product_id in self.known_products:
-                    product_info = self.known_products[product_id]
-                    source_query = product_info.get("source_query")
-                    if source_query:
-                        await self.search_product(source_query)
-                        card = self.page.locator(f"div[id='{product_id}']")
-                        if await card.count() == 0:
-                            print(
-                                f"Product {product_id} not found after recovery search."
-                            )
-                            return
-                else:
-                    print(f"Product ID {product_id} not found and unknown.")
-                    return
-
-            # Check for decrement button
-            # Robust strategy to find the - button
-            minus_btn = card.locator(".icon-minus").first
-            if await minus_btn.count() > 0:
-                minus_btn = minus_btn.locator("..")
-            else:
-                minus_btn = card.locator("text='-'").first
-
-            if await minus_btn.is_visible():
-                for i in range(quantity):
-                    await minus_btn.click()
-                    print(
-                        f"Decrementing quantity for {product_id} ({i + 1}/{quantity})."
-                    )
-                    await self.page.wait_for_timeout(500)
-
-                    # If ADD button reappears, item is fully removed
-                    if (
-                        await card.locator("div")
-                        .filter(has_text="ADD")
-                        .last.is_visible()
-                    ):
-                        print(f"Item {product_id} completely removed from cart.")
-                        break
-            else:
-                print(f"Item {product_id} is not in cart (no '-' button found).")
-
-        except Exception as e:
-            print(f"Error removing from cart: {e}")
+    # --- Location Delegate ---
+    async def set_location(self, location_name: str):
+        return await self.location_service.set_location(location_name)
 
     async def get_saved_addresses(self):
-        """Scrapes saved addresses from the selection modal."""
-        print("Checking for address selection modal...")
-        try:
-            if not await self.page.is_visible("text='Select delivery address'"):
-                print("Address selection modal not visible.")
-                return []
-
-            if await self._is_store_closed():
-                return "CRITICAL: Store is closed."
-
-            print("Address modal detected. Parsing addresses...")
-            address_items = self.page.locator(
-                "div[class*='AddressList__AddressItemWrapper']"
-            )
-            count = await address_items.count()
-
-            addresses = []
-            for i in range(count):
-                item = address_items.nth(i)
-                # Parse label
-                label_el = item.locator("div[class*='AddressList__AddressLabel']")
-                if await label_el.count() > 0:
-                    label = await label_el.inner_text()
-                else:
-                    label = "Unknown"
-
-                # Parse details
-                details_el = item.locator(
-                    "div[class*='AddressList__AddressDetails']"
-                ).last
-                if await details_el.count() > 0:
-                    details = await details_el.inner_text()
-                else:
-                    details = ""
-
-                addresses.append({"index": i, "label": label, "details": details})
-            return addresses
-
-        except Exception as e:
-            print(f"Error getting addresses: {e}")
-            return []
+        return await self.location_service.get_saved_addresses()
 
     async def select_address(self, index: int):
-        """Selects an address by index."""
-        try:
-            items = self.page.locator("div[class*='AddressList__AddressItemWrapper']")
-            if index < await items.count():
-                print(f"Selecting address at index {index}...")
+        return await self.location_service.select_address(index)
 
-                if await self._is_store_closed():
-                    return "CRITICAL: Store is closed."
+    # --- Cart Delegate ---
+    async def add_to_cart(self, product_id: str, quantity: int = 1):
+        return await self.cart_service.add_to_cart(product_id, quantity)
 
-                await items.nth(index).click()
-                # Wait for modal to close or location to update
-                await self.page.wait_for_timeout(2000)
-            else:
-                print(f"Invalid address index: {index}")
-        except Exception as e:
-            print(f"Error selecting address: {e}")
+    async def remove_from_cart(self, product_id: str, quantity: int = 1):
+        return await self.cart_service.remove_from_cart(product_id, quantity)
 
     async def get_cart_items(self):
-        """Checks items in the cart and returns the text content."""
-        print("Checking cart...")
-        try:
-            cart_btn = self.page.locator(
-                "div[class*='CartButton__Button'], div[class*='CartButton__Container']"
-            )
+        return await self.cart_service.get_cart_items()
 
-            if await cart_btn.count() > 0:
-                await cart_btn.first.click()
-                print("Clicked My Cart.")
-
-                # Verify opening
-                try:
-                    # Wait briefly for drawer or modals
-                    await self.page.wait_for_timeout(2000)
-
-                    # 1. Critical Availability Check
-                    if (
-                        await self.page.is_visible("text=Sorry, can't take your order")
-                        or await self.page.is_visible("text=Currently unavailable")
-                        or await self.page.is_visible("text=High Demand")
-                    ):
-                        return "CRITICAL: Store is unavailable. 'Sorry, can't take your order'. Please try again later."
-
-                    # 2. Check for Bill Details or Proceed Button (indicators of a valid active cart)
-                    # If these are NOT present, we shouldn't claim the cart is functioning.
-                    is_cart_active = (
-                        await self.page.is_visible("text=/Bill details/i")
-                        or await self.page.is_visible("button:has-text('Proceed')")
-                        or await self.page.is_visible("text=ordering for")
-                    )
-
-                    if await self._is_store_closed():
-                        return "CRITICAL: Store is closed."
-
-                    # Scrape content
-                    drawer = self.page.locator(
-                        "div[class*='CartDrawer'], div[class*='CartSidebar']"
-                    ).first
-
-                    if await drawer.count() > 0:
-                        content = await drawer.inner_text()
-                        # Double check availability in content text
-                        if (
-                            "Currently unavailable" in content
-                            or "can't take your order" in content
-                        ):
-                            return "CRITICAL: Store is unavailable (Text detected in cart). Please try again later."
-                        return content
-
-                    if is_cart_active:
-                        return "Cart is open. (Could not scrape specific drawer content, but functionality is active)."
-                    else:
-                        return "WARNING: Cart opened but seems empty or store is unavailable (No bill details/proceed button found)."
-
-                except Exception as e:
-                    return f"Cart drawer checking timed out or error: {e}"
-            else:
-                return "Cart button not found."
-
-        except Exception as e:
-            return f"Error getting cart items: {e}"
-
+    # --- Checkout Delegate ---
     async def place_order(self):
-        """Proceeds to checkout."""
-        print("Proceeding to Place Order...")
-
-        if await self._is_store_closed():
-            return "CRITICAL: Store is closed."
-
-        try:
-            proceed_btn = (
-                self.page.locator("button, div").filter(has_text="Proceed").last
-            )
-
-            # If Proceed not visible, try opening the cart first
-            if not await proceed_btn.is_visible():
-                print("Proceed button not visible. Attempting to open Cart drawer...")
-                cart_btn = self.page.locator(
-                    "div[class*='CartButton__Button'], div[class*='CartButton__Container']"
-                )
-                if await cart_btn.count() > 0:
-                    await cart_btn.first.click()
-                    print("Clicked 'My Cart' button.")
-                    await self.page.wait_for_timeout(2000)
-                else:
-                    print("Could not find 'My Cart' button.")
-
-            # Try clicking Proceed again
-            if await proceed_btn.is_visible():
-                await proceed_btn.click()
-                print("Clicked Proceed.")
-                await self.page.wait_for_timeout(3000)
-            else:
-                print(
-                    "Proceed button not visible. Cart might be empty or Store Unavailable."
-                )
-
-        except Exception as e:
-            print(f"Error placing order: {e}")
+        return await self.checkout_service.place_order()
 
     async def get_upi_ids(self):
-        """Scrapes available UPI IDs/options from the payment widget."""
-        print("Getting available UPI IDs...")
-        try:
-            iframe_element = await self.page.wait_for_selector(
-                "#payment_widget", timeout=30000
-            )
-            if not iframe_element:
-                print("Payment widget iframe not found.")
-                return []
-
-            frame = await iframe_element.content_frame()
-            if not frame:
-                return []
-
-            await frame.wait_for_load_state("networkidle")
-
-            ids = []
-            # Try to find elements that look like VPAs (contain @) inside the frame
-            vpa_locators = frame.locator("text=/@/")
-            count = await vpa_locators.count()
-            for i in range(count):
-                text = await vpa_locators.nth(i).inner_text()
-                if "@" in text:
-                    ids.append(text.strip())
-
-            # Also add "Add new UPI ID" option if exists
-            if await frame.locator("text='Add new UPI ID'").count() > 0:
-                ids.append("Add new UPI ID")
-
-            print(f"Found UPI IDs: {ids}")
-            return ids
-
-        except Exception as e:
-            print(f"Error getting UPI IDs: {e}")
-            return []
+        return await self.checkout_service.get_upi_ids()
 
     async def select_upi_id(self, upi_id: str):
-        """Selects a specific UPI ID or enters a new one."""
-        print(f"Selecting UPI ID: {upi_id}...")
-        try:
-            iframe_element = await self.page.wait_for_selector(
-                "#payment_widget", timeout=30000
-            )
-            if not iframe_element:
-                return
-
-            frame = await iframe_element.content_frame()
-            if not frame:
-                return
-
-            # 1. Try to click on an existing saved VPA if it matches
-            saved_vpa = frame.locator(f"text='{upi_id}'")
-            if await saved_vpa.count() > 0:
-                await saved_vpa.first.click()
-                print(f"Clicked saved VPA: {upi_id}")
-                return
-
-            # 2. If not found, Select "UPI" / "Add new UPI ID" section
-            # Click generic UPI header first if needed to expand
-            upi_header = frame.locator("div").filter(has_text="UPI").last
-            if await upi_header.count() > 0:
-                await upi_header.click()
-
-            await self.page.wait_for_timeout(500)
-
-            # 3. Enter VPA in input
-            input_locator = frame.locator(
-                "input[placeholder*='UPI'], input[type='text']"
-            )
-            if await input_locator.count() > 0:
-                await input_locator.first.fill(upi_id)
-                print(f"Filled UPI ID: {upi_id}")
-
-                # Verify
-                verify_btn = frame.locator("text=Verify")
-                if await verify_btn.count() > 0:
-                    await verify_btn.click()
-                    print("Clicked Verify button.")
-            else:
-                print("Could not find UPI input field.")
-
-        except Exception as e:
-            print(f"Error selecting UPI ID: {e}")
+        return await self.checkout_service.select_upi_id(upi_id)
 
     async def click_pay_now(self):
-        """Clicks the final Pay Now button."""
-        print("Attempting to click Pay Now...")
-        try:
-            # Strategy 1: Specific class partial match (most robust if class prefix is stable)
-            # HTML: <div class="Zpayments__Button-sc-127gezb-3 dAfcjh">Pay Now</div>
-            pay_btn_specific = self.page.locator(
-                "div[class*='Zpayments__Button']:has-text('Pay Now')"
-            )
-            if (
-                await pay_btn_specific.count() > 0
-                and await pay_btn_specific.first.is_visible()
-            ):
-                await pay_btn_specific.first.click()
-                print("Clicked 'Pay Now' (specific class selector).")
-                return
-
-            # Strategy 2: Text match on page (ensure it's visible)
-            pay_btn_text = (
-                self.page.locator("div, button").filter(has_text="Pay Now").last
-            )
-            if await pay_btn_text.count() > 0 and await pay_btn_text.is_visible():
-                await pay_btn_text.click()
-                print("Clicked 'Pay Now' (text selector).")
-                return
-
-            # Strategy 3: Check inside iframe (fallback)
-            iframe_element = await self.page.query_selector("#payment_widget")
-            if iframe_element:
-                frame = await iframe_element.content_frame()
-                if frame:
-                    frame_btn = frame.locator("text='Pay Now'")
-                    if await frame_btn.count() > 0:
-                        await frame_btn.first.click()
-                        print("Clicked 'Pay Now' inside iframe.")
-                        return
-
-            print("Could not find 'Pay Now' button (timeout or not in DOM).")
-
-        except Exception as e:
-            print(f"Error clicking Pay Now: {e}")
+        return await self.checkout_service.click_pay_now()
