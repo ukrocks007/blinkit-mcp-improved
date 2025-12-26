@@ -125,12 +125,18 @@ If you prefer to run from source:
 
 | Tool | Description |
 |------|-------------|
+| `check_login` | Check if currently logged in |
 | `login` | Login with phone number |
 | `enter_otp` | Verify login with OTP |
+| `set_location` | Manually search and set delivery location |
 | `search` | Search for products |
 | `add_to_cart` | Add product to cart by index |
+| `remove_from_cart` | Remove item from cart |
 | `check_cart` | View cart contents |
-| `checkout` | Proceed to checkout & select address |
+| `checkout` | Proceed to checkout |
+| `get_addresses` | Get list of saved addresses |
+| `select_address` | Select a delivery address |
+| `proceed_to_pay` | Proceed to payment page |
 | `get_upi_ids` | List available UPI payment options |
 | `select_upi_id` | Select a specific UPI ID for payment |
 | `pay_now` | Click the final Pay Now button |
@@ -151,10 +157,16 @@ If you prefer to run from source:
 blinkit-mcp/
 ├── main.py                # MCP server entry point
 ├── src/
-│   ├── ordering/          # Core browser automation logic
-│   │   └── blinkit_order.py
-│   ├── auth/              # Authentication persistence
-│   │   └── blinkit_auth.py
+│   ├── auth/              # Authentication module
+│   │   └── service.py     # Auth service implementation
+│   ├── order/             # Order management module
+│   │   ├── blinkit_order.py   # Main order controller
+│   │   └── services/          # Domain services
+│   │       ├── base.py        # Base service class
+│   │       ├── search.py      # Search logic
+│   │       ├── location.py    # Location logic
+│   │       ├── cart.py        # Cart logic
+│   │       └── checkout.py    # Checkout & Payment logic
 │   └── server.py          # MCP Tool definitions
 ├── test/
 │   └── cli.py             # CLI for testing independent of Claude
