@@ -54,7 +54,7 @@ class SearchService(BaseService):
         except Exception as e:
             print(f"Error during search: {e}")
 
-    async def get_search_results(self, limit=10):
+    async def get_search_results(self, limit=20):
         """Parses search results and returns a list of product details including IDs."""
         results = []
         try:

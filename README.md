@@ -98,6 +98,7 @@ If you prefer to run from source:
    ```bash
    git clone https://github.com/hereisSwapnil/blinkit-mcp.git
    cd blinkit-mcp
+   uv run playwright install
    uv run main.py
    ```
 
