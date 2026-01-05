@@ -20,12 +20,9 @@
         "type": "python",
         "entry_point": "main.py",
         "mcp_config": {
-            "command": "uv",
+            "command": "sh",
             "args": [
-                "run",
-                "--directory",
-                "${__dirname}",
-                "main.py"
+                "${__dirname}/start.sh"
             ],
             "env": {
                 "HEADLESS": "${user_config.HEADLESS}"
