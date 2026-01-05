@@ -35,7 +35,7 @@ No manual clicking required. Just ask Claude to buy milk.
 
 ## 🎬 Quick Demo
 
-![Blinkit MCP Demo](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMzM0N2FkNmEzZGQ5ZDY5ZDY5ZDY5ZDY5ZDY5ZDY5ZDY5ZD/3o7TKSjRrfIPjeiVyM/giphy.gif)
+https://github.com/user-attachments/assets/531f09ad-648a-4ee2-9271-5993ce637093
 
 > 💡 *Ask Claude: "Buy milk from Blinkit"*
 
