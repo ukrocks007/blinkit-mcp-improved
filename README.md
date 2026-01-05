@@ -54,12 +54,20 @@ https://github.com/user-attachments/assets/531f09ad-648a-4ee2-9271-5993ce637093
    powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
    ```
 
-2. **Download the MCP bundle**  
+2. **(Optional) Pre-install Browsers**  
+   If you want to speed up the first run:
+   ```bash
+   uvx playwright install chromium
+   # OR if you have Node.js:
+   # npx playwright install chromium
+   ```
+
+3. **Download the MCP bundle**  
    👉 [blinkit-mcp.mcpb](https://github.com/hereisSwapnil/blinkit-mcp/releases/download/v1.0.1/blinkit-mcp.mcpb)
 
-3. **Double-click** the `.mcpb` file — Claude Desktop installs it automatically.
+4. **Double-click** the `.mcpb` file — Claude Desktop installs it automatically.
 
-4. **Open Claude Desktop** and start shopping.
+5. **Open Claude Desktop** and start shopping.
 
 ---
 
@@ -98,7 +106,17 @@ If you prefer to run from source:
    ```bash
    git clone https://github.com/hereisSwapnil/blinkit-mcp.git
    cd blinkit-mcp
-   uv run playwright install
+   
+   # Install uv (if needed)
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   
+   # Install Python dependencies
+   uv sync
+   
+   # Install Playwright browsers
+   uv run playwright install chromium
+   
+   # Run the server
    uv run main.py
    ```
 

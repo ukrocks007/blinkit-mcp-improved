@@ -20,5 +20,16 @@ fi
 echo "Syncing dependencies..." >&2
 uv sync --frozen
 
+# Check for Playwright browsers (macOS specific check to save time)
+# If the directory doesn't exist, we run the install.
+# If it does, we assume they are installed to avoid the startup penalty.
+PLAYWRIGHT_DIR="$HOME/Library/Caches/ms-playwright"
+if [ ! -d "$PLAYWRIGHT_DIR" ]; then
+    echo "Playwright browsers not found. Installing..." >&2
+    uv run playwright install chromium
+else
+    echo "Playwright browsers found in $PLAYWRIGHT_DIR. Skipping install check." >&2
+fi
+
 echo "Starting Blinkit MCP..." >&2
 exec uv run main.py
