@@ -26,7 +26,8 @@ class BlinkitContext:
         import os
 
         session_path = os.path.expanduser("~/.blinkit_mcp/cookies/auth.json")
-        self.auth = BlinkitAuth(headless=False, session_path=session_path)
+        headless = os.environ.get("HEADLESS", "true").lower() == "true"
+        self.auth = BlinkitAuth(headless=headless, session_path=session_path)
         self.order = None
 
     async def ensure_started(self):

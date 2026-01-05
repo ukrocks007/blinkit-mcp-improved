@@ -128,7 +128,6 @@ class CheckoutService(BaseService):
 
     async def click_pay_now(self):
         """Clicks the final Pay Now button."""
-        print("Attempting to click Pay Now...")
         try:
             # Strategy 1: Specific class partial match
             pay_btn_specific = self.page.locator(
@@ -139,7 +138,7 @@ class CheckoutService(BaseService):
                 and await pay_btn_specific.first.is_visible()
             ):
                 await pay_btn_specific.first.click()
-                print("Clicked 'Pay Now' (specific class selector).")
+                print("Clicked 'Pay Now'. Please approve the payment on your UPI app.")
                 return
 
             # Strategy 2: Text match on page
@@ -148,7 +147,7 @@ class CheckoutService(BaseService):
             )
             if await pay_btn_text.count() > 0 and await pay_btn_text.is_visible():
                 await pay_btn_text.click()
-                print("Clicked 'Pay Now' (text selector).")
+                print("Clicked 'Pay Now'. Please approve the payment on your UPI app.")
                 return
 
             # Strategy 3: Check inside iframe
