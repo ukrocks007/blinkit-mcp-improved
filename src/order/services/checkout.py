@@ -29,6 +29,225 @@ class CheckoutService(BaseService):
             # Try clicking Proceed again
             if await proceed_btn.is_visible():
                 await proceed_btn.click()
+                print("Clicked Proceed to checkout.")
+                await self.page.wait_for_timeout(3000)
+                
+                # Check if address selection screen appears
+                if await self._is_address_selection_visible():
+                    print("Address selection screen detected.")
+                    return "ADDRESS_SELECTION_REQUIRED"
+                elif await self._is_payment_screen_visible():
+                    print("Payment screen detected.")
+                    return "PAYMENT_SCREEN_READY"
+                else:
+                    print("Unknown checkout state after clicking Proceed.")
+                    return "CHECKOUT_INITIATED"
+            else:
+                print("Proceed button not visible. Cart might be empty or Store Unavailable.")
+                return "PROCEED_BUTTON_NOT_FOUND"
+
+        except Exception as e:
+            print(f"Error placing order: {e}")
+            return f"ERROR: {e}"
+
+    async def _is_address_selection_visible(self):
+        """Check if address selection modal/screen is visible."""
+        address_indicators = [
+            "text='Select Address'",
+            "text='Choose Address'", 
+            "text='Delivery Address'",
+            "div:has-text('Add Address')",
+            "div:has-text('Home')",
+            "div:has-text('Work')"
+        ]
+        
+        for indicator in address_indicators:
+            if await self.page.is_visible(indicator, timeout=2000):
+                return True
+        return False
+
+    async def _is_payment_screen_visible(self):
+        """Check if payment selection screen is visible."""
+        payment_indicators = [
+            "text='Payment Options'",
+            "text='Cash on Delivery'", 
+            "text='UPI'",
+            "text='Credit Card'",
+            "#payment_widget"
+        ]
+        
+        for indicator in payment_indicators:
+            if await self.page.is_visible(indicator, timeout=2000):
+                return True
+        return False
+
+    async def get_addresses(self):
+        """Get list of saved addresses."""
+        print("Getting saved addresses...")
+        try:
+            addresses = []
+            
+            # Look for address cards/items
+            address_cards = self.page.locator("div:has-text('Home'), div:has-text('Work'), div:has-text('Other')")
+            count = await address_cards.count()
+            
+            for i in range(count):
+                card = address_cards.nth(i)
+                text = await card.inner_text()
+                addresses.append({
+                    "index": i,
+                    "text": text,
+                    "type": "Home" if "Home" in text else "Work" if "Work" in text else "Other"
+                })
+            
+            print(f"Found {len(addresses)} saved addresses")
+            return addresses
+            
+        except Exception as e:
+            print(f"Error getting addresses: {e}")
+            return []
+
+    async def select_address(self, index: int = 0):
+        """Select address by index (0 = first address)."""
+        print(f"Selecting address at index {index}...")
+        try:
+            # Wait for address selection screen
+            await self.page.wait_for_timeout(2000)
+            
+            # Look for address cards
+            address_cards = self.page.locator("div[role='button']:has-text('Home'), div[role='button']:has-text('Work'), div[role='button']:has-text('Other')")
+            
+            # Alternative selectors
+            if await address_cards.count() == 0:
+                address_cards = self.page.locator("div:has-text('Home'), div:has-text('Work'), div:has-text('Other')")
+            
+            if await address_cards.count() > index:
+                await address_cards.nth(index).click()
+                print(f"Selected address {index}")
+                await self.page.wait_for_timeout(2000)
+                return True
+            else:
+                print(f"Address index {index} not found. Available addresses: {await address_cards.count()}")
+                return False
+                
+        except Exception as e:
+            print(f"Error selecting address: {e}")
+            return False
+
+    async def proceed_to_pay(self):
+        """Click Proceed to payment after address selection."""
+        print("Proceeding to payment...")
+        try:
+            # Look for Proceed/Continue button after address selection
+            proceed_buttons = [
+                "button:has-text('Proceed')",
+                "button:has-text('Continue')", 
+                "div:has-text('Proceed')",
+                "div:has-text('Continue')"
+            ]
+            
+            for btn_selector in proceed_buttons:
+                btn = self.page.locator(btn_selector)
+                if await btn.count() > 0 and await btn.is_visible():
+                    await btn.click()
+                    print("Clicked Proceed to payment")
+                    await self.page.wait_for_timeout(3000)
+                    return True
+            
+            print("Could not find Proceed button")
+            return False
+            
+        except Exception as e:
+            print(f"Error proceeding to payment: {e}")
+            return False
+
+    async def select_cod(self):
+        """Select Cash on Delivery payment method."""
+        print("Selecting Cash on Delivery...")
+        try:
+            # Wait for payment options to load
+            await self.page.wait_for_timeout(2000)
+            
+            # Look for COD option with various texts
+            cod_selectors = [
+                "text='Cash on Delivery'",
+                "text='COD'", 
+                "div:has-text('Cash on Delivery')",
+                "div:has-text('Pay on Delivery')",
+                "label:has-text('Cash on Delivery')",
+                "button:has-text('Cash on Delivery')"
+            ]
+            
+            for selector in cod_selectors:
+                cod_option = self.page.locator(selector)
+                if await cod_option.count() > 0:
+                    await cod_option.click()
+                    print("Selected Cash on Delivery")
+                    await self.page.wait_for_timeout(1000)
+                    return True
+            
+            print("Could not find Cash on Delivery option")
+            return False
+            
+        except Exception as e:
+            print(f"Error selecting COD: {e}")
+            return False
+
+    async def place_cod_order(self):
+        """Place the final COD order."""
+        print("Placing COD order...")
+        try:
+            # Look for final order placement button
+            place_order_buttons = [
+                "button:has-text('Place Order')",
+                "button:has-text('Confirm Order')", 
+                "div:has-text('Place Order')",
+                "div:has-text('Confirm Order')",
+                "button:has-text('Order Now')"
+            ]
+            
+            for btn_selector in place_order_buttons:
+                btn = self.page.locator(btn_selector)
+                if await btn.count() > 0 and await btn.is_visible():
+                    await btn.click()
+                    print("Order placed successfully! 🎉")
+                    await self.page.wait_for_timeout(3000)
+                    return True
+            
+            print("Could not find Place Order button")
+            return False
+            
+        except Exception as e:
+            print(f"Error placing COD order: {e}")
+            return False
+
+    async def get_upi_ids(self):
+        """Proceeds to checkout."""
+
+        if await self._is_store_closed():
+            return "CRITICAL: Store is closed."
+
+        try:
+            proceed_btn = (
+                self.page.locator("button, div").filter(has_text="Proceed").last
+            )
+
+            # If Proceed not visible, try opening the cart first
+            if not await proceed_btn.is_visible():
+                print("Proceed button not visible. Attempting to open Cart drawer...")
+                cart_btn = self.page.locator(
+                    "div[class*='CartButton__Button'], div[class*='CartButton__Container']"
+                )
+                if await cart_btn.count() > 0:
+                    await cart_btn.first.click()
+                    print("Clicked 'My Cart' button.")
+                    await self.page.wait_for_timeout(2000)
+                else:
+                    print("Could not find 'My Cart' button.")
+
+            # Try clicking Proceed again
+            if await proceed_btn.is_visible():
+                await proceed_btn.click()
                 print(
                     "Cart checkout successfully.\nYou can select the payment method and proceed to pay."
                 )

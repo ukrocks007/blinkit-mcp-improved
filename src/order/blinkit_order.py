@@ -74,6 +74,21 @@ class BlinkitOrder:
     async def place_order(self):
         return await self.checkout_service.place_order()
 
+    async def get_addresses(self):
+        return await self.checkout_service.get_addresses()
+
+    async def select_address(self, index: int = 0):
+        return await self.checkout_service.select_address(index)
+
+    async def proceed_to_pay(self):
+        return await self.checkout_service.proceed_to_pay()
+
+    async def select_cod(self):
+        return await self.checkout_service.select_cod()
+
+    async def place_cod_order(self):
+        return await self.checkout_service.place_cod_order()
+
     async def get_upi_ids(self):
         return await self.checkout_service.get_upi_ids()
 
