@@ -222,29 +222,24 @@ export class PlaywrightAuth {
 
             console.error('Search submitted, waiting for results to load...');
 
-            // Wait for skeleton loaders to appear and then disappear
-            // First wait a bit for the search to trigger
-            await this.page.waitForTimeout(1000);
+            // Use Promise.race to proceed as soon as products appear OR shimmer disappears
+            await Promise.race([
+                // Option 1: Wait for product cards to appear (fastest)
+                this.page.waitForSelector('div[tabindex="0"][role="button"][id]', { state: 'visible', timeout: 8000 })
+                    .then(() => console.error('Product cards appeared'))
+                    .catch(() => { }),
 
-            // Wait for skeleton loaders to disappear (they have "Shimmer" in class name)
-            try {
-                await this.page.waitForSelector('div[class*="Shimmer"]', { state: 'visible', timeout: 3000 }).catch(() => { });
-                console.error('Skeleton loaders appeared, waiting for them to disappear...');
-                await this.page.waitForSelector('div[class*="Shimmer"]', { state: 'hidden', timeout: 3000 }).catch(() => { });
-            } catch (e) {
-                console.error('No skeleton loaders found or they disappeared already');
-            }
+                // Option 2: Wait for shimmer to disappear
+                (async () => {
+                    await this.page.waitForTimeout(500); // Brief wait for shimmer to appear
+                    await this.page.waitForSelector('div[class*="Shimmer"]', { state: 'hidden', timeout: 5000 })
+                        .then(() => console.error('Shimmer disappeared'))
+                        .catch(() => { });
+                })()
+            ]);
 
-            // Wait for actual product cards to appear with Tailwind structure
-            try {
-                await this.page.waitForSelector('div[tabindex="0"][role="button"][id]', { state: 'visible', timeout: 5000 });
-                console.error('Product cards loaded');
-            } catch (e) {
-                console.error('Timeout waiting for product cards, proceeding anyway...');
-            }
-
-            // Additional wait to ensure products are fully rendered
-            await this.page.waitForTimeout(2000);
+            // Small wait to ensure DOM is stable (reduced from 2000ms)
+            await this.page.waitForTimeout(500);
 
             // Extract product information
             const products = [];
