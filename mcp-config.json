@@ -1,12 +1,11 @@
 {
   "mcpServers": {
-    "blinkit-api": {
-      "command": "/home/user/blinkit-mcp-ace/venv/bin/python",
-      "args": ["/home/user/blinkit-mcp-ace/src/server_mcp.py"],
-      "env": {
-        "BLINKIT_SESSION_PATH": "/home/user/.blinkit_api_session.json",
-        "BLINKIT_DISCOVERY_PATH": "/home/user/blinkit-mcp-ace/automated_blinkit_api_discovery_20260201_093120.json"
-      }
+    "blinkit": {
+      "command": "node",
+      "args": [
+        "src/index.js"
+      ],
+      "env": {}
     }
   }
 }
