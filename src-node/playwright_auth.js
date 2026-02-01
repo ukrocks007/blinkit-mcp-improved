@@ -270,20 +270,37 @@ export class PlaywrightAuth {
                 try {
                     const card = productCards.nth(i);
 
-                    // Get all text from the card
-                    const allText = await card.innerText().catch(() => '');
-                    const lines = allText.split('\n').filter(l => l.trim());
+                    // Extract product name using specific Tailwind class selector
+                    const nameEl = card.locator('div[class*="tw-font-semibold"][class*="tw-line-clamp"]').first();
+                    const name = await nameEl.innerText().catch(() => {
+                        // Fallback: get all text and find product name
+                        const allText = card.innerText().catch(() => '');
+                        return allText.then(text => {
+                            const lines = text.split('\n').filter(l => l.trim() && !l.includes('mins') && !l.includes('ADD'));
+                            return lines[0] || 'Unknown Product';
+                        });
+                    });
 
-                    // First non-empty line is usually the product name
-                    const name = lines[0] || 'Unknown Product';
+                    // Extract variant/size
+                    const variantEl = card.locator('div[class*="tw-text-200"][class*="tw-font-medium"][class*="tw-line-clamp"]').first();
+                    const variant = await variantEl.innerText().catch(() => '');
 
-                    // Find price (line containing ₹)
-                    const priceLine = lines.find(l => l.includes('₹')) || '₹0';
+                    // Extract price
+                    const priceEl = card.locator('div[class*="tw-font-semibold"]:has-text("₹")').first();
+                    const price = await priceEl.innerText().catch(() => {
+                        // Fallback: look for any text with ₹
+                        const allText = card.innerText().catch(() => '');
+                        return allText.then(text => {
+                            const lines = text.split('\n');
+                            return lines.find(l => l.includes('₹')) || '₹0';
+                        });
+                    });
 
                     products.push({
                         id: `product_${i}`,
-                        name: name,
-                        price: priceLine,
+                        name: name.trim(),
+                        variant: variant.trim(),
+                        price: price.trim(),
                         index: i
                     });
                 } catch (e) {
