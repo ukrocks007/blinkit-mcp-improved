@@ -1,139 +1,133 @@
-# Contributing to Blinkit MCP Server Enhanced
+# Contributing to Blinkit MCP
 
-Thank you for your interest in contributing! This project aims to provide reliable automation for Blinkit grocery orders.
+Thank you for your interest in contributing to the Blinkit MCP Server!
 
-## 🚀 Quick Start
+## Development Setup
 
-1. **Fork the repository**
-2. **Clone your fork**:
+### Prerequisites
+
+- Node.js 18 or higher
+- npm or yarn
+- Git
+
+### Getting Started
+
+1. Fork the repository
+2. Clone your fork:
    ```bash
-   git clone https://github.com/your-username/blinkit-mcp-improved.git
+   git clone https://github.com/YOUR_USERNAME/blinkit-mcp-improved.git
    cd blinkit-mcp-improved
    ```
-3. **Set up development environment**:
+
+3. Install dependencies:
    ```bash
-   uv sync --dev
-   uv run playwright install firefox
+   cd src
+   npm install
    ```
 
-## 📋 Development Guidelines
+4. Install Playwright browsers:
+   ```bash
+   npx playwright install chromium
+   ```
 
-### **Code Style**
+## Making Changes
+
+### Code Style
+
+- Use consistent formatting (2 spaces for indentation)
+- Add comments for complex logic
+- Use descriptive variable names
 - Follow existing code patterns
-- Add comprehensive error handling
-- Include detailed logging for debugging
-- Write clear docstrings for new functions
 
-### **Testing**
-Before submitting:
-1. Test login flow with real phone number
-2. Test search functionality with various queries
-3. Test cart operations in different scenarios
-4. Verify checkout flow works end-to-end
+### Testing Your Changes
 
-### **Browser Automation Best Practices**
-- Use multiple selector strategies for robustness
-- Add appropriate wait times for UI changes
-- Handle dynamic content gracefully
-- Include fallback strategies for element detection
-
-## 🐛 Bug Fixes
-
-### **Common Areas Needing Attention**
-1. **Cart Operations**: Product detection, ADD button clicking
-2. **Checkout Flow**: Address selection, payment method detection
-3. **Session Management**: Login persistence, state tracking
-4. **Error Handling**: Graceful failures, informative messages
-
-### **Debugging Tips**
-- Use browser DevTools to inspect element selectors
-- Test with different product types and categories
-- Verify functionality during different times of day
-- Check for Blinkit UI changes that might break automation
-
-## ✨ Feature Requests
-
-### **Priority Areas**
-1. **Multi-product ordering**: Batch operations
-2. **Scheduled ordering**: Recurring orders
-3. **Price tracking**: Compare prices over time
-4. **Inventory alerts**: Notify when products are in stock
-5. **Order history**: Track past purchases
-
-### **UI/UX Improvements**
-- Better error messages
-- Progress indicators for long operations
-- Configuration management
-- Alternative payment methods
-
-## 🧪 Testing Strategy
-
-### **Manual Testing Checklist**
-- [ ] Login with OTP works
-- [ ] Search finds products consistently
-- [ ] Add to cart succeeds reliably
-- [ ] Checkout flow completes without errors
-- [ ] COD payment selection works
-- [ ] Order placement succeeds
-
-### **Edge Cases to Test**
-- [ ] Out of stock products
-- [ ] Store unavailable scenarios
-- [ ] Network timeouts
-- [ ] Invalid addresses
-- [ ] Payment method unavailable
-
-## 📝 Submission Process
-
-1. **Create feature branch**: `git checkout -b feature/your-feature-name`
-2. **Make changes with tests**
-3. **Update documentation** if needed
-4. **Commit with clear messages**:
+1. **Test individual tools**:
    ```bash
-   git commit -m "🐛 Fix cart detection for new Blinkit UI
-   
-   - Updated selectors for product cards
-   - Added fallback strategy for ADD buttons
-   - Improved error messages for debugging"
+   node src/test_client.js
    ```
-5. **Push and create PR**:
+
+2. **Test end-to-end flow**:
+   - Test with Claude Desktop or another MCP client
+   - Verify: login → search → cart → checkout
+
+3. **Debug mode**:
+   Edit `src/playwright_auth.js` line 12:
+   ```javascript
+   headless: false  // See browser automation
+   ```
+
+### Areas for Contribution
+
+- **New Payment Methods**: UPI, cards, wallets
+- **Cart Operations**: Remove items, update quantities
+- **Order Management**: View history, track orders
+- **Search Enhancements**: Filters, categories
+- **Error Handling**: Better recovery, more informative messages
+- **Performance**: Faster waits, optimized selectors
+- **Documentation**: Improve guides, add examples
+
+## Selector Updates
+
+When Blinkit UI changes:
+
+1. Run with `headless: false`
+2. Use Chrome DevTools to inspect elements
+3. Update selectors in `playwright_auth.js`
+4. Add fallback selectors for robustness
+5. Test thoroughly
+
+## Pull Request Process
+
+1. Create a feature branch:
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+2. Make your changes and commit:
+   ```bash
+   git add .
+   git commit -m "feat: description of changes"
+   ```
+
+3. Push to your fork:
    ```bash
    git push origin feature/your-feature-name
    ```
 
-## 🔧 Development Environment
+4. Open a Pull Request with:
+   - Clear description of changes
+   - Why the change is needed
+   - How you tested it
+   - Screenshots/recordings if UI-related
 
-### **Required Tools**
-- Python 3.8+
-- uv (package manager)
-- Firefox browser
-- mcporter (MCP client)
+## Commit Message Format
 
-### **Optional Tools**
-- Browser DevTools for selector debugging
-- Playwright Inspector for automation debugging
+Use conventional commits:
 
-## 🛡️ Security Considerations
+- `feat:` New feature
+- `fix:` Bug fix
+- `docs:` Documentation changes
+- `refactor:` Code refactoring
+- `test:` Test updates
+- `chore:` Maintenance tasks
 
-- **Never commit credentials** or phone numbers
-- **Use environment variables** for sensitive data
-- **Respect rate limits** to avoid being blocked
-- **Handle OTP securely** in file-based system
+## Code of Conduct
 
-## 🤝 Community
+- Be respectful and inclusive
+- Provide constructive feedback
+- Focus on the code, not the person
+- Help others learn and grow
 
-- **Be respectful** and constructive in discussions
-- **Share knowledge** about Blinkit's UI changes
-- **Help debug** issues reported by other users
-- **Document** solutions for common problems
+## Questions?
 
-## 📞 Contact
-
-For questions or discussions:
-- Create an issue for bugs or features
+- Open an issue for bugs or feature requests
 - Start a discussion for general questions
-- Maintained by Ace (OpenClaw Assistant)
+- Check existing issues before creating new ones
+
+## License
+
+By contributing, you agree that your contributions will be licensed under the MIT License.
 
 ---
 
-**Happy contributing! 🛒⚡**
+Thank you for helping make Blinkit MCP better! 🚀

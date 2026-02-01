@@ -2,78 +2,59 @@
     "manifest_version": "0.3",
     "name": "blinkit-mcp",
     "display_name": "Blinkit MCP",
-    "version": "1.0.2",
-    "description": "Automate grocery shopping on Blinkit directly from Claude Desktop. Search, cart, and UPI payments.",
-    "long_description": "Blinkit MCP allows you to order groceries and essentials directly from Claude.\n\n**Key Features:**\n• **Smart Search**: Find products and view details\n• **Cart Management**: Add items and manage your cart\n• **UPI Payment Automation**: Select saved UPI IDs and pay instantly\n• **Secure Login**: Phone number & OTP authentication with local session persistence\n\n**Secure & Private** - Runs locally on your machine with Playwright.",
+    "version": "2.0.0",
+    "description": "Automate grocery shopping on Blinkit directly from Claude Desktop. Search, add to cart, and COD payments.",
+    "long_description": "Blinkit MCP allows you to order groceries and essentials directly from Claude.\n\n**Key Features:**\n• **Smart Search**: Find products with fast skeleton loader detection\n• **Cart Management**: Add items and view cart details\n• **COD Payment**: Complete checkout with Cash on Delivery\n• **Secure Login**: Phone number & OTP authentication with local session persistence\n\n**Secure & Private** - Runs locally on your machine with Node.js and Playwright.",
     "author": {
-        "name": "hereisswapnil",
-        "email": "swapnilskumars@gmail.com",
-        "url": "https://github.com/hereisSwapnil"
+        "name": "ukrocks007",
+        "email": "",
+        "url": "https://github.com/ukrocks007"
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/hereisSwapnil/blinkit-mcp"
+        "url": "https://github.com/ukrocks007/blinkit-mcp-improved"
     },
     "icon": "assets/logo.png",
     "license": "MIT",
     "server": {
-        "type": "python",
-        "entry_point": "main.py",
+        "type": "node",
+        "entry_point": "src/index.js",
         "mcp_config": {
-            "command": "sh",
+            "command": "node",
             "args": [
-                "${__dirname}/start.sh"
+                "${__dirname}/src/index.js"
             ],
-            "env": {
-                "HEADLESS": "${user_config.HEADLESS}"
-            }
-        }
-    },
-    "user_config": {
-        "HEADLESS": {
-            "type": "string",
-            "title": "Headless Mode",
-            "description": "Run browser in headless mode (true/false)",
-            "required": false,
-            "sensitive": false
+            "env": {}
         }
     },
     "tools": [
         {
             "name": "login",
-            "description": "Login to Blinkit using phone number"
+            "description": "Login to Blinkit using phone number (starts OTP flow)"
         },
         {
-            "name": "enter_otp",
-            "description": "Verify login with OTP"
+            "name": "verify_otp",
+            "description": "Verify OTP received on phone to complete login"
         },
         {
-            "name": "search",
+            "name": "search_products",
             "description": "Search for products on Blinkit"
         },
         {
             "name": "add_to_cart",
-            "description": "Add a product to cart by result index"
+            "description": "Add a product to cart by its index from search results"
         },
         {
             "name": "check_cart",
-            "description": "View/Check cart status helpers"
+            "description": "View current items in cart"
         },
         {
-            "name": "checkout",
-            "description": "Proceed to checkout and select address"
+            "name": "get_addresses",
+            "description": "Get information about saved delivery addresses"
         },
         {
-            "name": "get_upi_ids",
-            "description": "Get available UPI payment options"
-        },
-        {
-            "name": "select_upi_id",
-            "description": "Select a specific UPI ID for payment"
-        },
-        {
-            "name": "pay_now",
-            "description": "Click the final Pay Now button"
+            "name": "place_order_cod",
+            "description": "Complete checkout and place order using Cash on Delivery"
         }
     ],
     "keywords": [
@@ -81,6 +62,8 @@
         "groceries",
         "automation",
         "shopping",
-        "upi"
+        "cod",
+        "nodejs",
+        "mcp"
     ]
 }

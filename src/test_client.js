@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
 import readline from 'readline';
 
-const server = spawn('node', ['index.js'], {
+const server = spawn('node', ['./index.js'], {
     stdio: ['pipe', 'pipe', 'inherit']
 });
 
