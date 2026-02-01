@@ -1,223 +1,266 @@
-# Blinkit MCP Server - Enhanced Edition 🛒
+# Blinkit MCP Server
 
-An improved Model Context Protocol (MCP) server for automating Blinkit grocery orders with enhanced cart functionality, robust checkout flow, and automated ordering capabilities.
+A Model Context Protocol (MCP) server that provides programmatic access to Blinkit's grocery shopping platform. Built with Node.js and Playwright for robust browser automation.
 
-## 🚀 Key Improvements
+## Features
 
-This enhanced version includes major fixes and improvements over the original:
+✅ **Authentication** - Login with phone number and OTP verification  
+✅ **Product Search** - Search for products with detailed information  
+✅ **Cart Management** - Add items to cart and view cart contents  
+✅ **Checkout** - Place orders with Cash on Delivery (COD)  
+✅ **Address Management** - View saved delivery addresses  
 
-### ✅ **Fixed Cart Functionality**
-- **Robust Product Detection**: Enhanced product ID matching and fallback strategies
-- **Re-search Capability**: Automatically re-searches when products aren't found
-- **Multiple ADD Button Strategies**: Uses various selectors to find and click ADD buttons
-- **Smart Error Handling**: Graceful fallbacks when cart operations fail
-
-### ✅ **Enhanced Checkout Flow**
-- **Address Selection**: Automated address detection and selection
-- **COD Support**: Cash on Delivery payment method selection
-- **Step-by-Step Checkout**: Proper handling of checkout state transitions
-- **Order Completion**: Full end-to-end order placement
-
-### ✅ **New Tools Added**
-- `search_and_add_to_cart`: Search and immediately add products to cart
-- `complete_order_flow`: Full automation from search to order placement
-- `get_addresses`: Get saved delivery addresses
-- `select_address`: Select delivery address by index
-- `select_cod`: Select Cash on Delivery payment
-- `place_cod_order`: Complete the order with COD
-
-### ✅ **Improved Session Management**
-- **File-based OTP System**: Real-time OTP coordination using file system
-- **Session Persistence**: Reliable browser state saving and loading
-- **Login Status Tracking**: Better authentication state management
-
-## 🛠️ Installation
+## Quick Start
 
 ### Prerequisites
-- Python 3.8+
-- uv (Python package manager)
-- Firefox browser (for Playwright)
 
-### Setup
+- Node.js 18+ 
+- npm or yarn
+
+### Installation
+
 ```bash
-# Clone the repository
-git clone https://github.com/ukrocks007/blinkit-mcp-improved.git
-cd blinkit-mcp-improved
-
-# Install dependencies
-uv sync
-
-# Install Firefox for Playwright
-uv run playwright install firefox
-
-# Configure with mcporter
-mcporter add blinkit /path/to/blinkit-mcp-improved/main.py --stdio
+cd src
+npm install
 ```
 
-## 📱 Usage
+### Running the Server
 
-### Authentication
+The server runs in stdio mode for MCP clients:
+
 ```bash
-# Login with OTP (phone number: your 10-digit number)
-mcporter call blinkit.login_prepare_and_wait --args '{"phone_number": "9168054254"}'
-
-# When you receive OTP via SMS/call, create the OTP file:
-echo "1234" > /tmp/blinkit_otp.txt
-
-# Check login status
-mcporter call blinkit.check_login
+node src/index.js
 ```
 
-### Quick Order (Recommended)
+### Testing
+
+Test the server with the included test client:
+
 ```bash
-# Complete end-to-end order in one command
-mcporter call blinkit.complete_order_flow --args '{"query": "davidoff decaf coffee", "item_index": 0, "address_index": 0}'
+node src/test_client.js
 ```
 
-### Step-by-Step Order
-```bash
-# 1. Search for products
-mcporter call blinkit.search --args '{"query": "milk"}'
+## Available Tools
 
-# 2. Add to cart (using search_and_add_to_cart for better reliability)
-mcporter call blinkit.search_and_add_to_cart --args '{"query": "milk", "item_index": 0}'
+### 1. `login`
+Start authentication by providing a phone number.
 
-# 3. Proceed to checkout
-mcporter call blinkit.checkout
+**Arguments:**
+- `phone_number` (string): Indian phone number (10 digits)
 
-# 4. Select address (if prompted)
-mcporter call blinkit.get_addresses
-mcporter call blinkit.select_address --args '{"index": 0}'
+**Returns:** Success message indicating OTP has been sent
 
-# 5. Select COD and place order
-mcporter call blinkit.select_cod
-mcporter call blinkit.place_cod_order
+### 2. `verify_otp`
+Complete login by verifying the OTP received on your phone.
+
+**Arguments:**
+- `otp` (string): 6-digit OTP code
+
+**Returns:** Authentication success confirmation
+
+### 3. `search_products`
+Search for products on Blinkit.
+
+**Arguments:**
+- `query` (string): Search term (e.g., "milk", "bread")
+- `limit` (number, optional): Maximum results to return (default: 20)
+
+**Returns:** Array of products with name, variant, price, and index
+
+### 4. `add_to_cart`
+Add a product to your cart by its index from search results.
+
+**Arguments:**
+- `product_index` (number): Index of product from search results
+- `quantity` (number, optional): Quantity to add (default: 1)
+
+**Returns:** Confirmation of item added to cart
+
+### 5. `check_cart`
+View current items in your cart.
+
+**Returns:** Array of cart items with details and grand total
+
+### 6. `get_addresses`
+Get information about saved delivery addresses.
+
+**Returns:** List of saved addresses with details
+
+### 7. `place_order_cod`
+Complete checkout and place order using Cash on Delivery.
+
+**Arguments:**
+- `address_index` (number, optional): Index of address to use (default: 0)
+
+**Returns:** Order placement confirmation or error details
+
+## Claude Desktop Integration
+
+Add to your Claude Desktop config file:
+
+**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`  
+**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "blinkit": {
+      "command": "node",
+      "args": ["/absolute/path/to/blinkit-mcp-improved/src/index.js"]
+    }
+  }
+}
 ```
 
-## 🔧 Available Tools
+After updating the config, restart Claude Desktop.
 
-### Authentication
-- `check_login`: Check if logged in
-- `login_prepare_and_wait`: Start login process with phone number
-- `enter_otp`: Enter OTP (alternative to file-based system)
+## Usage Example
 
-### Shopping
-- `search`: Search for products
-- `search_and_add_to_cart`: Search and immediately add to cart (recommended)
-- `add_to_cart`: Add product by ID to cart
-- `remove_from_cart`: Remove product from cart
-- `check_cart`: View current cart contents
+```javascript
+// In Claude Desktop or any MCP client:
 
-### Checkout & Payment
-- `checkout`: Proceed to checkout
-- `get_addresses`: Get saved delivery addresses
-- `select_address`: Select address by index
-- `proceed_to_pay`: Continue to payment after address selection
-- `select_cod`: Select Cash on Delivery
-- `place_cod_order`: Complete COD order
+// 1. Login
+await login({ phone_number: "9876543210" });
 
-### Advanced
-- `complete_order_flow`: End-to-end automation
-- `get_upi_ids`: Get available UPI payment options
-- `select_upi_id`: Select UPI payment method
-- `pay_now`: Complete UPI payment
+// 2. Verify OTP (check your phone)
+await verify_otp({ otp: "123456" });
 
-## 🎯 Key Fixes Implemented
+// 3. Search for products
+const products = await search_products({ query: "milk", limit: 10 });
 
-### **Cart System Overhaul**
-The original cart functionality failed because:
-- Products weren't found after search due to session state issues
-- ADD buttons had various selectors that weren't covered
-- No fallback strategies when product IDs didn't match
+// 4. Add first product to cart
+await add_to_cart({ product_index: 0, quantity: 2 });
 
-**Our fixes:**
-- Multi-strategy product detection (ID, name, position)
-- Re-search capability when products aren't found
-- Robust ADD button detection with multiple selectors
-- Smart fallback to available products when exact match fails
+// 5. Check cart
+const cart = await check_cart();
 
-### **Checkout Flow Enhancement**
-The original checkout was incomplete:
-- No address selection handling
-- No COD payment method support
-- No proper state transition management
+// 6. View addresses
+const addresses = await get_addresses();
 
-**Our improvements:**
-- Full address selection automation
-- COD payment method detection and selection
-- State-aware checkout progression
-- Order completion verification
-
-### **OTP System Reliability**
-Enhanced the file-based OTP system:
-- Real-time file monitoring
-- Automatic cleanup after use
-- Better error messages and status updates
-
-## 📋 Example Workflows
-
-### **Coffee Order**
-```bash
-mcporter call blinkit.complete_order_flow --args '{"query": "davidoff coffee", "item_index": 0, "address_index": 0}'
+// 7. Place order
+await place_order_cod({ address_index: 0 });
 ```
 
-### **Grocery Shopping**
-```bash
-# Search and add multiple items
-mcporter call blinkit.search_and_add_to_cart --args '{"query": "bread", "item_index": 0}'
-mcporter call blinkit.search_and_add_to_cart --args '{"query": "milk", "item_index": 0}'
-mcporter call blinkit.search_and_add_to_cart --args '{"query": "eggs", "item_index": 0}'
+## Technical Details
 
-# Complete checkout
-mcporter call blinkit.checkout
-mcporter call blinkit.select_address --args '{"index": 0}'
-mcporter call blinkit.select_cod
-mcporter call blinkit.place_cod_order
+### Architecture
+
+- **Language:** Node.js
+- **MCP SDK:** `@modelcontextprotocol/sdk`
+- **Browser Automation:** Playwright
+- **Transport:** stdio
+
+### Session Management
+
+- Browser sessions are automatically managed
+- Cookies stored in `~/.blinkit_mcp/cookies/`
+- One browser instance per server process
+- Sessions persist across tool calls
+
+### Selector Strategy
+
+Uses resilient selectors designed to handle:
+- Styled-components (class name hashing)
+- Tailwind CSS utility classes
+- Dynamic content loading
+- Skeleton loaders
+
+Combines:
+- Partial class matching `[class*=""]`
+- Structural attributes (`tabindex`, `role`, `id`)
+- Text content `:has-text()`
+- Fallback chains for robustness
+
+### Error Handling
+
+- COD minimum order validation
+- Address selection verification
+- Payment method enablement checks
+- Graceful degradation with informative errors
+
+## Troubleshooting
+
+### "Session expired" errors
+Re-run the `login` and `verify_otp` tools to establish a new session.
+
+### Search returns no results
+- Check if products appear in browser window
+- Wait times are optimized but may need adjustment for slow connections
+- Try more specific search terms
+
+### COD order placement fails
+- Verify address is selected correctly
+- Check cart total meets COD minimum (usually ₹100-200)
+- Ensure "Cash" payment panel expands and COD option is visible
+
+### Browser doesn't close
+Browser windows are kept open during server lifetime for session persistence. They close when the server stops.
+
+## Development
+
+### Project Structure
+
+```
+src/
+├── index.js           # MCP server implementation
+├── playwright_auth.js # Browser automation logic
+├── test_client.js     # Test harness
+└── package.json       # Dependencies
 ```
 
-## 🐛 Troubleshooting
+### Key Files
 
-### Common Issues
+- **index.js**: Implements MCP protocol, defines tools
+- **playwright_auth.js**: All browser automation (authentication, search, cart, checkout)
+- **test_client.js**: Standalone tester for debugging
 
-**"Product ID not found"**
-- Use `search_and_add_to_cart` instead of separate `search` + `add_to_cart`
-- This function maintains session state between search and cart operations
+### Running in Debug Mode
 
-**"Store unavailable"**
-- Blinkit availability varies by location and time
-- Try during peak hours (morning/evening)
-- Check if your delivery area is serviceable
+Edit `playwright_auth.js` line 12:
 
-**"Could not find COD option"**
-- Some products/locations may not support COD
-- Try UPI payment as alternative
-- Check if minimum order value is met
-
-**Login Issues**
-- Ensure phone number is correct (10 digits)
-- OTP file should be created immediately after receiving SMS
-- Check `/tmp/blinkit_otp.txt` permissions
-
-## 🤝 Contributing
-
-This is a maintained fork with active improvements. Issues and pull requests welcome!
-
-### Development Setup
-```bash
-git clone https://github.com/ukrocks007/blinkit-mcp-improved.git
-cd blinkit-mcp-improved
-uv sync --dev
+```javascript
+headless: false  // Shows browser window
 ```
 
-## 📄 License
+### Adding New Features
 
-MIT License - see LICENSE file for details.
+1. Add method to `PlaywrightAuth` class in `playwright_auth.js`
+2. Register new tool in `index.js` with schema
+3. Test with `test_client.js`
 
-## 🙏 Acknowledgments
+## Security & Privacy
 
-- Original Blinkit MCP by [hereisSwapnil](https://github.com/hereisSwapnil/blinkit-mcp)
-- Enhanced and maintained by Ace (OpenClaw Assistant)
+- **No data collection**: All interactions stay local
+- **Session isolation**: Each server instance has its own browser profile
+- **Credentials**: Phone number and OTP used only for Blinkit authentication
+- **Local storage**: Cookies stored only in `~/.blinkit_mcp/cookies/`
+
+## Limitations
+
+- **COD only**: Currently supports Cash on Delivery payment method only
+- **Single session**: One active browser session per server process
+- **Manual OTP**: Requires user to enter OTP from phone
+- **India only**: Works with Indian phone numbers and addresses
+
+## Contributing
+
+Contributions welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Test thoroughly (especially checkout flows)
+4. Submit a pull request
+
+## License
+
+MIT License - See LICENSE file for details
+
+## Acknowledgments
+
+Built with:
+- [Model Context Protocol](https://modelcontextprotocol.io/)
+- [Playwright](https://playwright.dev/)
+- [Node.js](https://nodejs.org/)
 
 ---
 
-**⚡ Ready to automate your grocery shopping!** 🛒
+**Note:** This is an unofficial tool and is not affiliated with, endorsed by, or connected to Blinkit/Zomato. Use responsibly and in accordance with Blinkit's Terms of Service.

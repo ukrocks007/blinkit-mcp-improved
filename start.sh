@@ -1,35 +1,36 @@
 #!/bin/bash
 
-# Add common install locations for uv to PATH
-export PATH=$HOME/.local/bin:$HOME/.cargo/bin:$PATH
+# Blinkit MCP Server - Node.js Startup Script
 
 # Ensure we are in the script's directory
 cd "$(dirname "$0")"
 
-# detailed logging for debugging if it still fails
-if ! command -v uv >/dev/null 2>&1; then
-    echo "uv not found. Installing..." >&2
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-    # Re-add to PATH in case it wasn't there before (redundant but safe)
-    export PATH=$HOME/.local/bin:$HOME/.cargo/bin:$PATH
-else
-    echo "uv found at: $(command -v uv)" >&2
+# Check if Node.js is installed
+if ! command -v node > /dev/null 2>&1; then
+    echo "Error: Node.js is not installed. Please install Node.js 18+ from https://nodejs.org/" >&2
+    exit 1
 fi
 
-# Ensure dependencies are installed
-echo "Syncing dependencies..." >&2
-uv sync --frozen
+echo "Node.js found: $(node --version)" >&2
 
-# Check for Playwright browsers (macOS specific check to save time)
-# If the directory doesn't exist, we run the install.
-# If it does, we assume they are installed to avoid the startup penalty.
-PLAYWRIGHT_DIR="$HOME/Library/Caches/ms-playwright"
-if [ ! -d "$PLAYWRIGHT_DIR" ]; then
-    echo "Playwright browsers not found. Installing..." >&2
-    uv run playwright install chromium
+# Navigate to src directory
+cd src
+
+# Check if node_modules exists, if not install dependencies
+if [ ! -d "node_modules" ]; then
+    echo "Installing dependencies..." >&2
+    npm install
 else
-    echo "Playwright browsers found in $PLAYWRIGHT_DIR. Skipping install check." >&2
+    echo "Dependencies already installed." >&2
 fi
 
-echo "Starting Blinkit MCP..." >&2
-exec uv run main.py
+# Check for Playwright browsers
+if ! npx playwright list-files chromium > /dev/null 2>&1; then
+    echo "Installing Playwright Chromium..." >&2
+    npx playwright install chromium
+else
+    echo "Playwright Chromium already installed." >&2
+fi
+
+echo "Starting Blinkit MCP Server..." >&2
+exec node index.js
