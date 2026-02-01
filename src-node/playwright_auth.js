@@ -230,7 +230,7 @@ export class PlaywrightAuth {
             try {
                 await this.page.waitForSelector('div[class*="Shimmer"]', { state: 'visible', timeout: 3000 }).catch(() => { });
                 console.error('Skeleton loaders appeared, waiting for them to disappear...');
-                await this.page.waitForSelector('div[class*="Shimmer"]', { state: 'hidden', timeout: 10000 }).catch(() => { });
+                await this.page.waitForSelector('div[class*="Shimmer"]', { state: 'hidden', timeout: 3000 }).catch(() => { });
             } catch (e) {
                 console.error('No skeleton loaders found or they disappeared already');
             }
@@ -594,6 +594,9 @@ export class PlaywrightAuth {
             }
 
             // Now look for the Cash on Delivery option within the expanded panel
+            // The panel should now be expanded, wait for it to fully render
+            await this.page.waitForTimeout(1000);
+
             const codSelectors = [
                 'text="Cash on Delivery"',
                 'text="COD"',
@@ -606,10 +609,10 @@ export class PlaywrightAuth {
             let codSelected = false;
             for (const selector of codSelectors) {
                 const codOption = this.page.locator(selector);
-                if (await codOption.count() > 0) {
+                if (await codOption.count() > 0 && await codOption.isVisible()) {
                     await codOption.first().click();
-                    console.error('Selected Cash on Delivery');
-                    await this.page.waitForTimeout(1000);
+                    console.error('Selected Cash on Delivery option');
+                    await this.page.waitForTimeout(1500);
                     codSelected = true;
                     break;
                 }
@@ -621,7 +624,7 @@ export class PlaywrightAuth {
             }
 
             // Check for COD restriction messages
-            await this.page.waitForTimeout(1500);
+            await this.page.waitForTimeout(1000);
             const codErrorMessages = [
                 'Cash on delivery is not applicable on orders with item total less than',
                 'COD is not available for this order',
@@ -641,30 +644,44 @@ export class PlaywrightAuth {
             }
 
 
-            // Step 6: Click "Pay Now" button after selecting Cash/COD
-            await this.page.waitForTimeout(2000);
+            // Step 6: Wait for Pay Now button to become enabled, then click it
+            console.error('Waiting for Pay Now button to become enabled...');
 
-            const payNowSelectors = [
-                'div[class*="Zpayments__Button"]:has-text("Pay Now")',
-                'button:has-text("Pay Now")',
-                'div:has-text("Pay Now")'
-            ];
+            // Wait for the Pay Now button to exist and not be disabled
+            const payNowBtn = this.page.locator('div[class*="Zpayments__Button"]:has-text("Pay Now")').first();
 
-            let payNowClicked = false;
-            for (const selector of payNowSelectors) {
-                const payNowBtn = this.page.locator(selector);
-                if (await payNowBtn.count() > 0 && await payNowBtn.isVisible()) {
-                    await payNowBtn.click();
-                    console.error('Clicked Pay Now button');
-                    await this.page.waitForTimeout(3000);
-                    payNowClicked = true;
-                    break;
+            try {
+                // Wait for the button to be enabled (disabled attribute removed)
+                await payNowBtn.waitFor({ state: 'visible', timeout: 5000 });
+
+                // Check if disabled attribute is present, wait for it to be removed
+                let isDisabled = true;
+                let attempts = 0;
+                while (isDisabled && attempts < 10) {
+                    const disabled = await payNowBtn.getAttribute('disabled');
+                    if (disabled === null) {
+                        isDisabled = false;
+                    } else {
+                        console.error('Pay Now button still disabled, waiting...');
+                        await this.page.waitForTimeout(1000);
+                        attempts++;
+                    }
                 }
+
+                if (isDisabled) {
+                    console.error('Pay Now button remained disabled after 10 seconds');
+                    return { success: false, error: 'Pay Now button did not become enabled. Cash option may not have been selected properly.' };
+                }
+
+                // Button is enabled, click it
+                await payNowBtn.click();
+                console.error('Clicked Pay Now button');
+                await this.page.waitForTimeout(3000);
+            } catch (e) {
+                console.error(`Error with Pay Now button: ${e.message}`);
+                return { success: false, error: `Failed to click Pay Now button: ${e.message}` };
             }
 
-            if (!payNowClicked) {
-                console.error('Pay Now button not found, looking for final confirmation button...');
-            }
 
             // Step 7: Final order confirmation
             // After Pay Now, there might be another confirmation step
