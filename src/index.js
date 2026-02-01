@@ -1,9 +1,7 @@
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+#!/usr/bin/env node
+
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
 import { PlaywrightAuth } from "./playwright_auth.js";
 import dotenv from "dotenv";
 
@@ -11,17 +9,10 @@ dotenv.config();
 
 class BlinkitBrowserServer {
   constructor() {
-    this.server = new Server(
-      {
-        name: "blinkit-browser-mcp",
-        version: "1.0.0",
-      },
-      {
-        capabilities: {
-          tools: {},
-        },
-      }
-    );
+    this.server = new McpServer({
+      name: "blinkit-browser-mcp",
+      version: "2.0.0",
+    });
 
     this.playwright = null;
     this.setupTools();
@@ -36,136 +27,105 @@ class BlinkitBrowserServer {
   }
 
   setupTools() {
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
-      tools: [
-        {
-          name: "login",
-          description: "Login to Blinkit with phone number (starts OTP flow)",
-          inputSchema: {
-            type: "object",
-            properties: {
-              phoneNumber: {
-                type: "string",
-                description: "10-digit Indian phone number"
-              },
-            },
-            required: ["phoneNumber"],
-          },
+    // Define all tools using the new McpServer API
+    this.server.tool(
+      "login",
+      "Login to Blinkit with phone number (starts OTP flow)",
+      {
+        phoneNumber: {
+          type: "string",
+          description: "10-digit Indian phone number"
         },
-        {
-          name: "verify_otp",
-          description: "Verify OTP received on phone to complete login",
-          inputSchema: {
-            type: "object",
-            properties: {
-              otp: {
-                type: "string",
-                description: "4-digit OTP code"
-              },
-            },
-            required: ["otp"],
-          },
-        },
-        {
-          name: "search_products",
-          description: "Search for products on Blinkit",
-          inputSchema: {
-            type: "object",
-            properties: {
-              query: {
-                type: "string",
-                description: "Search query (e.g., 'milk', 'bread')"
-              },
-              limit: {
-                type: "number",
-                default: 10,
-                description: "Maximum number of results to return"
-              },
-            },
-            required: ["query"],
-          },
-        },
-        {
-          name: "add_to_cart",
-          description: "Add a product to cart by its index from search results",
-          inputSchema: {
-            type: "object",
-            properties: {
-              productIndex: {
-                type: "number",
-                description: "Index of the product from search results (0-based)"
-              },
-              quantity: {
-                type: "number",
-                default: 1,
-                description: "Quantity to add"
-              },
-            },
-            required: ["productIndex"],
-          },
-        },
-        {
-          name: "check_cart",
-          description: "View current items in cart",
-          inputSchema: {
-            type: "object",
-            properties: {},
-          },
-        },
-        {
-          name: "get_addresses",
-          description: "Get information about saved delivery addresses",
-          inputSchema: {
-            type: "object",
-            properties: {},
-          },
-        },
-        {
-          name: "place_order_cod",
-          description: "Complete checkout and place order using Cash on Delivery",
-          inputSchema: {
-            type: "object",
-            properties: {
-              addressIndex: {
-                type: "number",
-                default: 0,
-                description: "Index of the delivery address to use (0 = first address)"
-              },
-            },
-          },
-        },
-      ],
-    }));
-
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      const { name, arguments: args } = request.params;
-
-      try {
-        switch (name) {
-          case "login":
-            return await this.handleLogin(args.phoneNumber);
-          case "verify_otp":
-            return await this.handleVerifyOTP(args.otp);
-          case "search_products":
-            return await this.handleSearch(args.query, args.limit || 10);
-          case "add_to_cart":
-            return await this.handleAddToCart(args.productIndex, args.quantity || 1);
-          case "check_cart":
-            return await this.handleCheckCart();
-          case "get_addresses":
-            return await this.handleGetAddresses();
-          case "place_order_cod":
-            return await this.handlePlaceOrderCOD(args.addressIndex || 0);
-          default:
-            throw new Error(`Unknown tool: ${name}`);
-        }
-      } catch (error) {
-        return {
-          content: [{ type: "text", text: `Error: ${error.message}` }],
-          isError: true,
-        };
+      },
+      async ({ phoneNumber }) => {
+        return await this.handleLogin(phoneNumber);
       }
-    });
+    );
+
+    this.server.tool(
+      "verify_otp",
+      "Verify OTP received on phone to complete login",
+      {
+        otp: {
+          type: "string",
+          description: "4-digit OTP code"
+        },
+      },
+      async ({ otp }) => {
+        return await this.handleVerifyOTP(otp);
+      }
+    );
+
+    this.server.tool(
+      "search_products",
+      "Search for products on Blinkit",
+      {
+        query: {
+          type: "string",
+          description: "Search query (e.g., 'milk', 'bread')"
+        },
+        limit: {
+          type: "number",
+          description: "Maximum number of results to return",
+          default: 10
+        },
+      },
+      async ({ query, limit }) => {
+        return await this.handleSearch(query, limit || 10);
+      }
+    );
+
+    this.server.tool(
+      "add_to_cart",
+      "Add a product to cart by its index from search results",
+      {
+        productIndex: {
+          type: "number",
+          description: "Index of the product from search results (0-based)"
+        },
+        quantity: {
+          type: "number",
+          description: "Quantity to add",
+          default: 1
+        },
+      },
+      async ({ productIndex, quantity }) => {
+        return await this.handleAddToCart(productIndex, quantity || 1);
+      }
+    );
+
+    this.server.tool(
+      "check_cart",
+      "View current items in cart",
+      {},
+      async () => {
+        return await this.handleCheckCart();
+      }
+    );
+
+    this.server.tool(
+      "get_addresses",
+      "Get information about saved delivery addresses",
+      {},
+      async () => {
+        return await this.handleGetAddresses();
+      }
+    );
+
+    this.server.tool(
+      "place_order_cod",
+      "Complete checkout and place order using Cash on Delivery",
+      {
+        addressIndex: {
+          type: "number",
+          description: "Index of the delivery address to use (0 = first address)",
+          default: 0
+        },
+      },
+      async ({ addressIndex }) => {
+        return await this.handlePlaceOrderCOD(addressIndex || 0);
+      }
+    );
   }
 
   async handleLogin(phoneNumber) {

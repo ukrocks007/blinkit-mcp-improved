@@ -1,15 +1,38 @@
 {
-  "name": "blinkit-mcp-node",
-  "version": "1.0.0",
-  "description": "",
+  "name": "@ukrocks007/blinkit-mcp",
+  "version": "2.0.0",
+  "description": "MCP server for Blinkit grocery shopping automation with Node.js and Playwright",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "bin": {
+    "blinkit-mcp": "./index.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node test_client.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "blinkit",
+    "groceries",
+    "automation",
+    "playwright",
+    "nodejs"
+  ],
+  "author": "ukrocks007",
+  "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ukrocks007/blinkit-mcp-improved.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ukrocks007/blinkit-mcp-improved/issues"
+  },
+  "homepage": "https://github.com/ukrocks007/blinkit-mcp-improved#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.3",
     "axios": "^1.13.4",
@@ -18,5 +41,10 @@
     "node-fetch": "^3.3.2",
     "playwright": "^1.58.1",
     "zod": "^4.3.6"
-  }
+  },
+  "files": [
+    "index.js",
+    "playwright_auth.js",
+    "README.md"
+  ]
 }
