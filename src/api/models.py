@@ -82,10 +82,10 @@ class Address:
     id: str
     type: str  # "home", "work", "other"
     line1: str
-    line2: Optional[str] = None
     city: str
     state: str
     pincode: str
+    line2: Optional[str] = None
     landmark: Optional[str] = None
     is_default: bool = False
 
