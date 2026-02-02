@@ -20,8 +20,10 @@ A Model Context Protocol (MCP) server that provides programmatic access to Blink
 ### Installation
 
 ```bash
-cd src
+git clone https://github.com/ukrocks007/blinkit-mcp-improved.git
+cd blinkit-mcp-improved
 npm install
+npx playwright install chromium
 ```
 
 ### Running the Server
@@ -29,6 +31,8 @@ npm install
 The server runs in stdio mode for MCP clients:
 
 ```bash
+npm start
+# or
 node src/index.js
 ```
 
@@ -37,6 +41,8 @@ node src/index.js
 Test the server with the included test client:
 
 ```bash
+npm test
+# or
 node src/test_client.js
 ```
 
@@ -46,7 +52,7 @@ node src/test_client.js
 Start authentication by providing a phone number.
 
 **Arguments:**
-- `phone_number` (string): Indian phone number (10 digits)
+- `phoneNumber` (string): Indian phone number (10 digits)
 
 **Returns:** Success message indicating OTP has been sent
 
@@ -54,7 +60,7 @@ Start authentication by providing a phone number.
 Complete login by verifying the OTP received on your phone.
 
 **Arguments:**
-- `otp` (string): 6-digit OTP code
+- `otp` (string): 4-digit OTP code
 
 **Returns:** Authentication success confirmation
 
@@ -63,7 +69,7 @@ Search for products on Blinkit.
 
 **Arguments:**
 - `query` (string): Search term (e.g., "milk", "bread")
-- `limit` (number, optional): Maximum results to return (default: 20)
+- `limit` (number, optional): Maximum results to return (default: 10)
 
 **Returns:** Array of products with name, variant, price, and index
 
@@ -71,7 +77,7 @@ Search for products on Blinkit.
 Add a product to your cart by its index from search results.
 
 **Arguments:**
-- `product_index` (number): Index of product from search results
+- `productIndex` (number): Index of product from search results (0-based)
 - `quantity` (number, optional): Quantity to add (default: 1)
 
 **Returns:** Confirmation of item added to cart
@@ -90,7 +96,7 @@ Get information about saved delivery addresses.
 Complete checkout and place order using Cash on Delivery.
 
 **Arguments:**
-- `address_index` (number, optional): Index of address to use (default: 0)
+- `addressIndex` (number, optional): Index of address to use (default: 0)
 
 **Returns:** Order placement confirmation or error details
 
@@ -120,16 +126,16 @@ After updating the config, restart Claude Desktop.
 // In Claude Desktop or any MCP client:
 
 // 1. Login
-await login({ phone_number: "9876543210" });
+await login({ phoneNumber: "9876543210" });
 
 // 2. Verify OTP (check your phone)
-await verify_otp({ otp: "123456" });
+await verify_otp({ otp: "1234" });
 
 // 3. Search for products
 const products = await search_products({ query: "milk", limit: 10 });
 
 // 4. Add first product to cart
-await add_to_cart({ product_index: 0, quantity: 2 });
+await add_to_cart({ productIndex: 0, quantity: 2 });
 
 // 5. Check cart
 const cart = await check_cart();
@@ -138,14 +144,14 @@ const cart = await check_cart();
 const addresses = await get_addresses();
 
 // 7. Place order
-await place_order_cod({ address_index: 0 });
+await place_order_cod({ addressIndex: 0 });
 ```
 
 ## Technical Details
 
 ### Architecture
 
-- **Language:** Node.js
+- **Language:** Node.js (requires 18+)
 - **MCP SDK:** `@modelcontextprotocol/sdk`
 - **Browser Automation:** Playwright
 - **Transport:** stdio
@@ -196,37 +202,53 @@ Re-run the `login` and `verify_otp` tools to establish a new session.
 ### Browser doesn't close
 Browser windows are kept open during server lifetime for session persistence. They close when the server stops.
 
+### Browser not found
+```bash
+npx playwright install chromium
+```
+
 ## Development
 
 ### Project Structure
 
 ```
-src/
-├── index.js           # MCP server implementation
-├── playwright_auth.js # Browser automation logic
-├── test_client.js     # Test harness
-└── package.json       # Dependencies
+blinkit-mcp-improved/
+├── src/
+│   ├── index.js           # MCP server implementation
+│   ├── playwright_auth.js # Browser automation logic
+│   └── test_client.js     # Test harness
+├── package.json           # Dependencies
+├── README.md              # This file
+└── start.sh               # Launch script
 ```
 
 ### Key Files
 
-- **index.js**: Implements MCP protocol, defines tools
-- **playwright_auth.js**: All browser automation (authentication, search, cart, checkout)
-- **test_client.js**: Standalone tester for debugging
+- **src/index.js**: Implements MCP protocol, defines tools
+- **src/playwright_auth.js**: All browser automation (authentication, search, cart, checkout)
+- **src/test_client.js**: Standalone tester for debugging
 
 ### Running in Debug Mode
 
-Edit `playwright_auth.js` line 12:
+Edit `src/playwright_auth.js` to see the browser window:
 
 ```javascript
-headless: false  // Shows browser window
+this.browser = await chromium.launch({
+  headless: false  // Shows browser window
+});
+```
+
+### Testing with MCP Inspector
+
+```bash
+npx @modelcontextprotocol/inspector node src/index.js
 ```
 
 ### Adding New Features
 
-1. Add method to `PlaywrightAuth` class in `playwright_auth.js`
-2. Register new tool in `index.js` with schema
-3. Test with `test_client.js`
+1. Add method to `PlaywrightAuth` class in `src/playwright_auth.js`
+2. Register new tool in `src/index.js` with schema
+3. Test with `npm test`
 
 ## Security & Privacy
 
@@ -249,6 +271,8 @@ Contributions welcome! Please:
 2. Create a feature branch
 3. Test thoroughly (especially checkout flows)
 4. Submit a pull request
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ## License
 
